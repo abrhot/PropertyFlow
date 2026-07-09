@@ -1,0 +1,7 @@
+{
+  "extends": "@fieldtrack/config/tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}

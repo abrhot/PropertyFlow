@@ -1,0 +1,90 @@
+// FieldTrack database schema (Prisma + PostgreSQL).
+// This is a starting point covering the core entities. Extend as modules land.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  COMPANY_ADMIN
+  DISPATCHER
+  TECHNICIAN
+  CUSTOMER
+  AUDITOR
+}
+
+enum WorkOrderStatus {
+  DRAFT
+  ASSIGNED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum WorkOrderPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Company {
+  id         String      @id @default(uuid())
+  name       String
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  users      User[]
+  customers  Customer[]
+  workOrders WorkOrder[]
+}
+
+model User {
+  id           String      @id @default(uuid())
+  company      Company     @relation(fields: [companyId], references: [id])
+  companyId    String
+  email        String      @unique
+  passwordHash String
+  fullName     String
+  role         UserRole    @default(TECHNICIAN)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  assignedWork WorkOrder[] @relation("AssignedTechnician")
+}
+
+model Customer {
+  id         String      @id @default(uuid())
+  company    Company     @relation(fields: [companyId], references: [id])
+  companyId  String
+  name       String
+  email      String?
+  phone      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  workOrders WorkOrder[]
+}
+
+model WorkOrder {
+  id                   String            @id @default(uuid())
+  company              Company           @relation(fields: [companyId], references: [id])
+  companyId            String
+  customer             Customer          @relation(fields: [customerId], references: [id])
+  customerId           String
+  title                String
+  description          String?
+  status               WorkOrderStatus   @default(DRAFT)
+  priority             WorkOrderPriority @default(MEDIUM)
+  assignedTechnician   User?             @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id])
+  assignedTechnicianId String?
+  scheduledFor         DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+}

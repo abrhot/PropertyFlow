@@ -1,0 +1,24 @@
+{
+  "name": "fieldtrack",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FieldTrack - Field Operations Management Platform (monorepo)",
+  "packageManager": "pnpm@10.23.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3"
+  }
+}
