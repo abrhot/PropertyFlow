@@ -1,15 +1,19 @@
 import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
+import { Providers } from '@/components/providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'FieldTrack Admin',
-  description: 'Field Operations Management Platform - Admin Portal',
+  title: 'PropertyFlow',
+  description: 'SaaS Property Management Platform',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="min-h-screen antialiased">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

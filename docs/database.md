@@ -1,29 +1,39 @@
 # Database
 
-PostgreSQL, accessed through **Prisma**. The schema lives at
+PostgreSQL, accessed through **Prisma**. Schema:
 `packages/database/prisma/schema.prisma`.
 
 ## Getting started
 
-1. Copy env: `cp packages/database/.env.example packages/database/.env` and set `DATABASE_URL`.
-2. Generate the client: `pnpm --filter @fieldtrack/database db:generate`
-3. Create the first migration: `pnpm --filter @fieldtrack/database db:migrate`
-4. Inspect data: `pnpm --filter @fieldtrack/database db:studio`
+```bash
+docker compose up -d                                   # start Postgres (host port 5433)
+cp packages/database/.env.example packages/database/.env
+pnpm --filter @propertyflow/database db:generate       # generate the typed client
+pnpm --filter @propertyflow/database db:migrate        # create/apply migrations
+pnpm --filter @propertyflow/database db:studio         # inspect data
+```
 
-## Core tables (initial)
+## Phase 1 tables (auth & multi-tenancy)
 
-- **Company** — tenant / organization.
-- **User** — staff accounts with a `UserRole` (SUPER_ADMIN → CUSTOMER).
-- **Customer** — clients who request work.
-- **WorkOrder** — the central job entity with `WorkOrderStatus` and `WorkOrderPriority`.
+- **Organization** — the SaaS tenant (a management company). Has `subscriptionTier`.
+- **User** — belongs to an Organization (null for `SUPER_ADMIN`); has a `UserRole`
+  and a bcrypt `passwordHash`. Email is globally unique.
+- **RefreshToken** — server-side record of issued refresh tokens (SHA-256 hash,
+  expiry, revocation) enabling rotation + reuse detection.
+- **PasswordResetToken** — hashed, single-use, expiring reset tokens.
 
-## Planned tables (from requirements)
+## Multi-tenant isolation
 
-Roles, Permissions, Employees, Teams, Addresses, WorkOrderTasks, Appointments, Assets,
-Vehicles, InventoryItems, Photos, Attachments, Notifications, Messages, ActivityLogs,
-Reports.
+Every tenant-owned entity carries an `organizationId`. Authorization is scoped by
+**both role and organization**. Enforce scoping in every query; for defense in
+depth, consider PostgreSQL Row-Level Security as the model grows (see PRD §10).
+
+## Planned tables (later phases)
+
+Property, Unit, Lease, RentSchedule, Payment, MaintenanceRequest, Document,
+Message, Notification, OwnerStatement — plus the SaaS billing/subscription layer.
 
 ## Keeping enums in sync
 
-The Prisma enums (`UserRole`, `WorkOrderStatus`, `WorkOrderPriority`) mirror the values in
-`packages/constants`. When you change one, update the other so the API and clients agree.
+Prisma enums (`UserRole`, `SubscriptionTier`) mirror `packages/constants`. Update
+both together so the API and clients agree.

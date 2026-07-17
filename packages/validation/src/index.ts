@@ -1,30 +1,42 @@
 /**
- * Zod validation schemas shared between the API (request validation)
- * and the web/mobile apps (form validation), so rules stay in sync.
+ * Zod validation schemas shared between the API (request validation) and the
+ * web/mobile apps (form validation), so rules stay in sync (single source of truth).
  */
 
 import { z } from 'zod';
-import { USER_ROLES, WORK_ORDER_STATUSES, WORK_ORDER_PRIORITIES } from '@fieldtrack/constants';
+
+/** Reused password policy. Adjust here to change it everywhere. */
+export const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(72, 'Password must be at most 72 characters') // bcrypt hard limit
+  .regex(/[a-z]/, 'Include at least one lowercase letter')
+  .regex(/[A-Z]/, 'Include at least one uppercase letter')
+  .regex(/[0-9]/, 'Include at least one number');
+
+export const emailSchema = z.string().trim().toLowerCase().email('Enter a valid email address');
+
+export const registerSchema = z.object({
+  organizationName: z.string().trim().min(2, 'Organization name is too short').max(120),
+  fullName: z.string().trim().min(2, 'Full name is too short').max(120),
+  email: emailSchema,
+  password: passwordSchema,
+});
+export type RegisterInput = z.infer<typeof registerSchema>;
 
 export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  email: emailSchema,
+  password: z.string().min(1, 'Password is required'),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
-export const createUserSchema = z.object({
-  email: z.string().email(),
-  fullName: z.string().min(1),
-  role: z.enum(USER_ROLES),
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
 });
-export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
-export const createWorkOrderSchema = z.object({
-  customerId: z.string().uuid(),
-  title: z.string().min(1),
-  description: z.string().optional(),
-  priority: z.enum(WORK_ORDER_PRIORITIES).default('MEDIUM'),
-  status: z.enum(WORK_ORDER_STATUSES).default('DRAFT'),
-  scheduledFor: z.string().datetime().optional(),
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  password: passwordSchema,
 });
-export type CreateWorkOrderInput = z.infer<typeof createWorkOrderSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

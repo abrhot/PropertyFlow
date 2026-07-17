@@ -1,60 +1,58 @@
 # Architecture
 
-FieldTrack is a **pnpm + Turborepo monorepo**. Everything (web, mobile, backend, and
-shared code) lives in one repository so types, validation, and business rules stay in
-sync and CI/CD stays simple.
+PropertyFlow is a **pnpm + Turborepo monorepo**. Web, mobile, and backend share
+types, validation, and business logic so all clients stay in sync, while each app
+still deploys independently.
 
 ## Layout
 
 ```
-fieldtrack/
+propertyflow/
 ├── apps/
-│   ├── web/        # Next.js admin portal (TypeScript, App Router)
-│   ├── mobile/     # Flutter technician app (generated separately)
+│   ├── web/        # Next.js (App Router) + Tailwind + shadcn/ui + TanStack Query
+│   ├── mobile/     # React Native (Expo) — placeholder
 │   └── api/        # NestJS backend (REST)
 ├── packages/
-│   ├── ui/         # Shared React components
-│   ├── types/      # Shared TypeScript interfaces
-│   ├── auth/       # Auth token shapes + RBAC helpers
-│   ├── database/   # Prisma schema & client
-│   ├── config/     # Shared tsconfig / prettier
-│   ├── utils/      # Common helpers
+│   ├── ui/         # Shared React primitives
+│   ├── types/      # Shared TypeScript types & API contracts (DTOs)
+│   ├── api-client/ # Typed SDK for calling the backend (web + mobile)
+│   ├── auth/       # Token shapes + RBAC helpers (framework-agnostic)
+│   ├── database/   # Prisma schema & client singleton
 │   ├── validation/ # Zod schemas (shared client + server)
-│   └── constants/  # Roles, statuses, enums
-└── docs/
+│   ├── constants/  # Roles, statuses, enums
+│   ├── config/     # Shared tsconfig / prettier
+│   └── utils/      # Common helpers
+├── docs/
+└── docker-compose.yml   # Postgres + Redis for local dev
 ```
 
-## Internal packages ("just-in-time")
+## Compiled internal packages
 
-Shared packages export their **TypeScript source** directly (`main`/`exports` point at
-`src/index.ts`) instead of a pre-built `dist/`. Consumers compile them as part of their
-own build:
+Shared packages compile to `dist/` (`tsc`) and expose `main`/`types` there. This
+is required so the NestJS API (compiled + run with `node`) can import them at
+runtime, and it gives clean, portable types to every consumer. Turborepo builds
+packages before apps via `dependsOn: ["^build"]`.
 
-- The web app lists them under `transpilePackages` in `next.config.mjs`.
-- The API compiles them via its own `tsc`/`nest build`.
+## Auth architecture
 
-This keeps the dev loop fast (no separate build/watch per package). If a package later
-needs to ship compiled output (e.g. for external consumers), add a `build` script and
-point `exports` at `dist/`.
+- **Access token** (short-lived JWT) is held in memory by the web client.
+- **Refresh token** (long-lived JWT) lives in an **httpOnly cookie**; the server
+  stores only a hash and rotates it on refresh (with reuse detection).
+- `@propertyflow/api-client` transparently retries once via `/auth/refresh` on a
+  `401`, so UI code rarely deals with token expiry.
+- The API uses a **global JWT guard** (`@Public()` opts out) + a **RolesGuard**
+  (`@Roles(...)`). Multi-tenant isolation is enforced by scoping queries on
+  `organizationId`.
 
 ## Technology stack
 
-- **Web:** Next.js + TypeScript + Tailwind CSS (add Tailwind when styling begins)
-- **Backend:** NestJS + PostgreSQL + Prisma
-- **Mobile:** Flutter
-- **Auth:** JWT + refresh tokens (RBAC)
-- **Storage:** Cloudinary or AWS S3
-- **Maps:** Google Maps or OpenStreetMap
-- **Push notifications:** Firebase Cloud Messaging
+- **Web:** Next.js + TypeScript + Tailwind CSS + shadcn/ui + TanStack Query
+- **Backend:** NestJS + PostgreSQL + Prisma + (Redis for jobs, later)
+- **Mobile:** React Native (Expo) — shares types/validation/api-client
+- **Auth:** JWT access + refresh (rotation), bcrypt, RBAC scoped by organization
+- **Payments (later):** Stripe · **Storage:** S3/Cloudinary · **Push:** FCM
 
 ## Dependency direction
 
-```
-apps/web  ─┐
-apps/api  ─┼─▶ packages/* (types, constants, utils, validation, auth, ui, database)
-           │
-constants ◀── types, validation, auth   (constants is the lowest-level shared package)
-config    ◀── (everything, for tsconfig)
-```
-
-Keep the arrows one-directional: apps depend on packages, never the reverse.
+Apps depend on packages, never the reverse. `constants` is the lowest-level
+shared package; `config` provides the shared tsconfig to everything.

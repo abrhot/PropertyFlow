@@ -5,7 +5,7 @@ export class AppService {
   getHealth() {
     return {
       status: 'ok',
-      service: 'fieldtrack-api',
+      service: 'propertyflow-api',
       timestamp: new Date().toISOString(),
     };
   }

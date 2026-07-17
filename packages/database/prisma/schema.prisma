@@ -1,5 +1,7 @@
-// FieldTrack database schema (Prisma + PostgreSQL).
-// This is a starting point covering the core entities. Extend as modules land.
+// PropertyFlow database schema (Prisma + PostgreSQL).
+// Phase 1 scope: authentication & multi-tenancy (Organizations, Users, RBAC,
+// refresh tokens, password resets). Property/Unit/Lease/Payment models arrive
+// in later phases (see docs/requirements.md).
 
 generator client {
   provider = "prisma-client-js"
@@ -12,79 +14,79 @@ datasource db {
 
 enum UserRole {
   SUPER_ADMIN
-  COMPANY_ADMIN
-  DISPATCHER
-  TECHNICIAN
-  CUSTOMER
-  AUDITOR
+  ORG_ADMIN
+  PROPERTY_MANAGER
+  LEASING_AGENT
+  ACCOUNTANT
+  MAINTENANCE
+  OWNER
+  TENANT
 }
 
-enum WorkOrderStatus {
-  DRAFT
-  ASSIGNED
-  IN_PROGRESS
-  ON_HOLD
-  COMPLETED
-  CANCELLED
+enum SubscriptionTier {
+  TRIAL
+  STARTER
+  GROWTH
+  ENTERPRISE
 }
 
-enum WorkOrderPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
+/// A management company: the "tenant" of the multi-tenant SaaS platform.
+model Organization {
+  id               String           @id @default(uuid())
+  name             String
+  slug             String           @unique
+  subscriptionTier SubscriptionTier @default(TRIAL)
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-model Company {
-  id         String      @id @default(uuid())
-  name       String
-  isActive   Boolean     @default(true)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  users      User[]
-  customers  Customer[]
-  workOrders WorkOrder[]
+  users User[]
 }
 
 model User {
-  id           String      @id @default(uuid())
-  company      Company     @relation(fields: [companyId], references: [id])
-  companyId    String
-  email        String      @unique
-  passwordHash String
-  fullName     String
-  role         UserRole    @default(TECHNICIAN)
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  assignedWork WorkOrder[] @relation("AssignedTechnician")
+  id              String    @id @default(uuid())
+  /// Null for SUPER_ADMIN (platform-wide, not tied to an organization).
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId  String?
+  email           String    @unique
+  passwordHash    String
+  fullName        String
+  role            UserRole  @default(TENANT)
+  isActive        Boolean   @default(true)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@index([organizationId])
 }
 
-model Customer {
-  id         String      @id @default(uuid())
-  company    Company     @relation(fields: [companyId], references: [id])
-  companyId  String
-  name       String
-  email      String?
-  phone      String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  workOrders WorkOrder[]
+/// Server-side record of an issued refresh token (rotation + revocation).
+/// Only the hash is stored, never the raw token.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
-model WorkOrder {
-  id                   String            @id @default(uuid())
-  company              Company           @relation(fields: [companyId], references: [id])
-  companyId            String
-  customer             Customer          @relation(fields: [customerId], references: [id])
-  customerId           String
-  title                String
-  description          String?
-  status               WorkOrderStatus   @default(DRAFT)
-  priority             WorkOrderPriority @default(MEDIUM)
-  assignedTechnician   User?             @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id])
-  assignedTechnicianId String?
-  scheduledFor         DateTime?
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }

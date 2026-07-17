@@ -1,82 +1,60 @@
-# FieldTrack — Requirements
+# PropertyFlow — Requirements
 
-**FieldTrack** is a Field Operations Management Platform that centralizes and automates
-the workflows companies use to dispatch technicians to customer sites.
+**PropertyFlow** is a multi-tenant **SaaS Property Management Platform**. It helps
+property management companies, landlords, and owners manage portfolios end-to-end
+— listings, tenant applications, leases, rent collection, maintenance, and
+financial reporting — with a web app, a mobile app, and a shared backend.
 
-## The problem
-
-Many companies still coordinate field work using phone calls, spreadsheets, WhatsApp, or
-paper forms. This leads to lost work orders, slow technician assignment, poor visibility
-into job progress, no location tracking, difficult performance reporting, and delayed
-customer updates.
-
-## Who uses it
-
-Internet Service Providers, telecom companies, utility companies (water, electricity),
-solar installation businesses, maintenance companies, construction firms, and equipment
-repair services.
+It serves two connected audiences: **managers/owners** (visibility and control)
+and **tenants** (pay rent, submit maintenance requests, communicate).
 
 ## User roles
 
-| Role          | Responsibilities                                                    |
-| ------------- | ------------------------------------------------------------------- |
-| Super Admin   | Manages the entire platform and companies (if SaaS).                |
-| Company Admin | Manages employees, teams, customers, and company settings.         |
-| Dispatcher    | Creates and assigns work orders, schedules technicians.            |
-| Technician    | Completes assigned jobs through the mobile app.                     |
-| Customer      | Submits requests and tracks job status.                            |
-| Auditor/Manager | Reviews completed work and performance reports.                  |
+| Role | Scope | Responsibilities |
+| --- | --- | --- |
+| Super Administrator | Platform-wide | Manage organizations, platform config, billing, analytics |
+| Organization Admin | One company | Staff, properties, owners, company settings |
+| Property Manager | Assigned properties | Units, leases, applications, maintenance, reports |
+| Leasing Agent | Assigned properties | Listings, applications, screening, lease creation |
+| Accountant | Financial data | Ledgers, statements, reconciliation |
+| Maintenance / Vendor | Assigned work orders | Update status, upload photos, log time/materials |
+| Owner | Own properties | View performance, occupancy, financials |
+| Tenant | Own lease/unit | Pay rent, submit requests, view lease, message mgmt |
 
-## Main modules
+Permissions are scoped by **both role AND organization/property** to prevent
+cross-tenant data leakage.
 
-Authentication & Security · User & Role Management · Customer Management ·
-Work Order Management · Scheduling & Dispatch · Team Management ·
-Asset & Vehicle Management · Inventory (optional) · Notifications · Chat ·
-Reports & Analytics · Audit Logs · Settings
+## Core modules
 
-## Workflow
+Auth & access control (RBAC) · Organization & portfolio · Listings & applications ·
+Lease management (e-sign) · Rent collection & payments (Stripe) · Maintenance ·
+Accounting & reporting · Communication · Documents · Notifications · Analytics.
 
-1. Customer submits a service request.
-2. Dispatcher creates a work order.
-3. Dispatcher assigns a technician.
-4. Technician receives a push notification.
-5. Technician navigates to the customer.
-6. Technician starts the job.
-7. Technician uploads photos and notes.
-8. Customer signs digitally to confirm completion.
-9. Dispatcher reviews the completed work.
-10. Reports and analytics update automatically.
+## Key workflows
 
-## Web application pages (30+)
-
-- **Authentication:** Login, Register, Forgot Password, Reset Password
-- **Dashboard:** Overview, Analytics, Notifications
-- **User Management:** Users, Roles, Permissions
-- **Employee Management:** Employees, Departments, Teams
-- **Customer Management:** Customers, Customer Details
-- **Work Orders:** Work Orders, Create Work Order, Work Order Details, Assign Technician
-- **Scheduling:** Calendar, Job Queue
-- **Assets:** Equipment, Vehicles
-- **Reports:** Technician Performance, Job Completion, Customer Satisfaction, Revenue (optional)
-- **Settings:** Company Settings, Profile, Audit Logs
-
-## Mobile application pages
-
-Login · Dashboard · Assigned Jobs · Job Details · Maps & Navigation · Customer Details ·
-Start Job · Pause Job · Complete Job · Upload Photos · Scan QR Code · Digital Signature ·
-Notifications · Chat · Profile · Offline Sync · Job History
-
-## Future features
-
-Live GPS tracking · AI-assisted technician assignment · Predictive maintenance ·
-Route optimization · Voice-to-text job notes · Barcode/QR scanning ·
-Offline-first synchronization · Customer ratings & feedback · In-app messaging ·
-Equipment maintenance scheduling
+- **Application → lease:** apply → screen → approve → e-sign → rent schedule.
+- **Rent collection:** auto-charge → remind → pay (autopay/online) → reconcile →
+  late fee → owner statement.
+- **Maintenance:** tenant submits (with photos) → assign → technician updates →
+  complete → tenant rates → logged.
 
 ## Development phases
 
-- **Phase 1 (Weeks 1–2):** Monorepo setup, authentication, database, user & role management.
-- **Phase 2 (Weeks 3–4):** Customer management, work order CRUD, technician assignment.
-- **Phase 3 (Weeks 5–6):** Mobile app — login, assigned jobs, job updates.
-- **Phase 4 (Weeks 7–8):** Photo uploads, notifications, maps integration, reports.
-- **Phase 5 (Weeks 9–10):** Offline support, QR scanning, digital signatures, final testing & deployment.
+- **Phase 0 — Monorepo foundation:** tooling, shared packages, CI. ✅
+- **Phase 1 — Auth & multi-tenancy:** organizations, RBAC, login. ✅ *(implemented)*
+- **Phase 2 — Property & lease management:** properties, units, leases (web CRUD).
+- **Phase 3 — Rent collection:** Stripe, rent schedules, autopay, tenant portal.
+- **Phase 4 — Maintenance:** work orders + mobile app MVP.
+- **Phase 5 — Applications & screening:** listings, screening, e-signature.
+- **Phase 6 — Reporting & owner portal.**
+- **Phase 7 — Billing & subscription layer** (the platform's own SaaS billing).
+- **Phase 8 — Hardening & launch.**
+
+## Non-functional requirements
+
+Strict multi-tenant isolation · secure auth + PCI-compliant payments · responsive
+web + native-feeling mobile · offline mobile support for field staff · fast
+dashboards · scalable from single landlord to enterprise · regional compliance.
+
+> This is a condensed summary. The full product guideline (executive summary,
+> data model, billing model, risks, glossary, etc.) is the source of truth.

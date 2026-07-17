@@ -1,51 +1,89 @@
-# FieldTrack — Field Operations Management Platform
+# PropertyFlow — SaaS Property Management Platform
 
-A monorepo for FieldTrack: a platform that centralizes and automates how companies dispatch
-technicians to customer sites (work orders, scheduling, tracking, reporting).
+A multi-tenant monorepo for PropertyFlow: a platform that helps property
+management companies, landlords, and owners manage their portfolios end-to-end —
+listings, tenant applications, leases, rent collection, maintenance, and
+financial reporting.
 
-> Internship project. See [`docs/requirements.md`](docs/requirements.md) for the full
-> product spec and [`docs/architecture.md`](docs/architecture.md) for how it's built.
+> See [`docs/requirements.md`](docs/requirements.md) for the product spec and
+> [`docs/architecture.md`](docs/architecture.md) for how it's built.
 
 ## Tech stack
 
-Next.js · NestJS · Flutter · PostgreSQL + Prisma · Turborepo · pnpm · TypeScript · Zod
+Next.js · NestJS · React Native (Expo, planned) · PostgreSQL + Prisma · Redis ·
+Turborepo · pnpm · TypeScript · Zod · Tailwind CSS + shadcn/ui · TanStack Query
 
 ## Structure
 
 ```
-apps/       web (Next.js) · api (NestJS) · mobile (Flutter placeholder)
-packages/   ui · types · auth · database · config · utils · validation · constants
-docs/       requirements · architecture · database · api
+apps/
+  web/        Next.js admin/tenant/owner web app (Tailwind + shadcn/ui)
+  api/        NestJS backend (auth, multi-tenant, RBAC)
+  mobile/     React Native (Expo) placeholder
+packages/
+  ui · types · auth · database · config · utils · validation · constants · api-client
+docs/         requirements · architecture · database · api
 ```
 
 ## Prerequisites
 
 - Node.js **v20+**
 - pnpm (`npm install -g pnpm`)
-- (Later) PostgreSQL and Flutter
+- Docker Desktop (for local Postgres + Redis)
 
 ## Getting started
 
 ```bash
-pnpm install          # install all workspace dependencies
-pnpm dev              # run all apps in dev (via Turborepo)
-pnpm build            # build everything
-pnpm lint             # lint everything
-pnpm typecheck        # type-check everything
+pnpm install
+
+# 1. Start Postgres + Redis
+docker compose up -d
+
+# 2. Configure env (copy the examples)
+cp apps/api/.env.example apps/api/.env
+cp packages/database/.env.example packages/database/.env
+cp apps/web/.env.example apps/web/.env.local   # optional (defaults are fine)
+
+# 3. Create the database schema
+pnpm --filter @propertyflow/database db:generate
+pnpm --filter @propertyflow/database db:migrate
+
+# 4. Run everything (web + api)
+pnpm dev
 ```
 
-Run a single app:
+- Web: http://localhost:3000
+- API: http://localhost:3001/api (health: `/api/health`)
+
+> Note: the Docker Postgres is published on host port **5433** (5432 is often
+> taken by a local Postgres install). The example env files already point there.
+
+## Authentication (Phase 1 — implemented)
+
+Full auth is built and tested end-to-end:
+
+- **Register** a management company (creates the Organization + first `ORG_ADMIN`)
+- **Login / logout** with JWT **access tokens** (in-memory) + **refresh tokens**
+  (rotated, httpOnly cookie, reuse-detection)
+- **Refresh** and **/me**
+- **Forgot / reset password** (hashed, single-use, expiring tokens)
+- **RBAC** via `@Roles(...)` + a global JWT guard, scoped by organization
+- Passwords hashed with bcrypt; request bodies validated with shared **Zod** schemas
+
+Web UI (shadcn/ui): `/login`, `/register`, `/forgot-password`, `/reset-password`,
+and a protected `/dashboard`.
+
+See [`docs/api.md`](docs/api.md) for endpoints.
+
+## Common scripts
 
 ```bash
-pnpm --filter @fieldtrack/web dev     # http://localhost:3000
-pnpm --filter @fieldtrack/api dev     # http://localhost:3001/api
+pnpm dev         # run all apps (Turborepo)
+pnpm build       # build everything
+pnpm typecheck   # type-check everything
+pnpm lint        # lint everything
 ```
 
 ## Contributing
 
-Commit messages follow **Conventional Commits** — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## Development phases
-
-Phase 1 (this scaffold): monorepo, auth, database, user & role management.
-See [`docs/requirements.md`](docs/requirements.md#development-phases) for the full roadmap.
+Commits follow **Conventional Commits** — see [`CONTRIBUTING.md`](CONTRIBUTING.md).

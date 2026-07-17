@@ -1,30 +1,30 @@
-# FieldTrack Mobile (Flutter)
+# PropertyFlow Mobile (React Native + Expo)
 
-The technician-facing mobile app. This folder is a placeholder — the Flutter
-project hasn't been generated yet (Flutter wasn't installed at scaffold time).
+The mobile app for tenants, maintenance staff/vendors, and on-the-go managers.
+This folder is a placeholder — the Expo project hasn't been generated yet.
+
+React Native (Expo) is used (instead of Flutter) so the app can share
+TypeScript types, validation, and business logic with the web app via the
+monorepo `packages/*` (see the PRD's technology-stack note).
 
 ## Generate the app
 
-Install Flutter (https://docs.flutter.dev/get-started/install), then from the
-repo root:
+Install the Expo tooling, then from the repo root:
 
 ```bash
 cd apps
-flutter create --org com.fieldtrack --project-name mobile mobile
+npx create-expo-app@latest mobile --template
 ```
 
-> `flutter create` will populate this folder. Keep this README (or fold its
-> notes into the generated one).
+Then wire it into the workspace and reuse the shared packages:
 
-## Why it's not a pnpm workspace member
+- `@propertyflow/types` — API contracts (DTOs)
+- `@propertyflow/validation` — Zod form validation
+- `@propertyflow/api-client` — typed SDK for the backend
+- `@propertyflow/constants` — roles, statuses, enums
 
-Flutter uses `pub` (not npm/pnpm), so `apps/mobile` is intentionally excluded
-from the JS/TS toolchain. It still lives in the monorepo so the whole product
-is versioned together and can share API contracts (see `packages/types` and
-`docs/api.md`) by mirroring them in Dart.
+## Planned scope
 
-## Planned screens
-
-Login, Dashboard, Assigned Jobs, Job Details, Maps & Navigation, Start/Pause/
-Complete Job, Upload Photos, Scan QR, Digital Signature, Notifications, Chat,
-Profile, Offline Sync, Job History.
+Role-aware login (tenant / staff / manager), rent payment, lease view,
+maintenance requests with photos, work-order updates, push notifications,
+and offline support with sync-on-reconnect.

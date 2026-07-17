@@ -1,12 +1,24 @@
 /**
- * Prisma client singleton.
+ * Prisma client singleton for PropertyFlow.
  *
- * Run `pnpm --filter @fieldtrack/database db:generate` after editing the schema
- * to (re)generate the typed client before importing from here.
+ * Run `pnpm --filter @propertyflow/database db:generate` after editing the
+ * schema to (re)generate the typed client.
+ *
+ * The singleton guard prevents exhausting DB connections during dev hot-reload.
  */
 
-// Uncomment once you've run `prisma generate`:
-// export { PrismaClient } from '@prisma/client';
-// export const prisma = new PrismaClient();
+import { PrismaClient } from '@prisma/client';
 
-export const DATABASE_PACKAGE = '@fieldtrack/database';
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['query', 'warn', 'error'] : ['warn', 'error'],
+  });
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
+
+export * from '@prisma/client';

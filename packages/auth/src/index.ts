@@ -1,45 +1,49 @@
 /**
- * Shared authentication + authorization (RBAC) logic.
+ * Shared authentication + authorization (RBAC) logic for PropertyFlow.
  *
- * NOTE: JWT signing/verification lives in the API (which holds the secret).
- * This package holds the framework-agnostic pieces: token shapes and
- * role-based permission checks that both the API and clients can rely on.
+ * JWT signing/verification lives in the API (which holds the secrets). This
+ * package holds the framework-agnostic pieces: token shapes and role-based
+ * permission checks that both the API and clients can rely on.
+ *
+ * IMPORTANT (multi-tenant SaaS): authorization must be scoped by BOTH role AND
+ * organization. `canAccess` handles the role check; callers MUST additionally
+ * scope every query by `organizationId` (see `assertSameOrg`).
  */
 
-import type { UserRole } from '@fieldtrack/constants';
+import type { UserRole } from '@propertyflow/constants';
 
 export interface AccessTokenPayload {
+  /** User id. */
   sub: string;
-  companyId: string;
+  /** Organization id, or null for SUPER_ADMIN. */
+  orgId: string | null;
   role: UserRole;
+  /** Token type discriminator. */
+  type: 'access';
   iat?: number;
   exp?: number;
 }
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-/**
- * Simple role hierarchy: a higher rank inherits the permissions of lower ranks.
- * Adjust as the permission model grows (e.g. move to explicit permission sets).
- */
-const ROLE_RANK: Record<UserRole, number> = {
-  CUSTOMER: 0,
-  TECHNICIAN: 1,
-  AUDITOR: 2,
-  DISPATCHER: 3,
-  COMPANY_ADMIN: 4,
-  SUPER_ADMIN: 5,
-};
-
-/** Returns true if `role` is at least as privileged as `required`. */
-export function hasAtLeastRole(role: UserRole, required: UserRole): boolean {
-  return ROLE_RANK[role] >= ROLE_RANK[required];
+export interface RefreshTokenPayload {
+  sub: string;
+  /** Opaque token id, used to look up / rotate the stored refresh token. */
+  jti: string;
+  type: 'refresh';
+  iat?: number;
+  exp?: number;
 }
 
 /** Returns true if `role` is one of the explicitly allowed roles. */
 export function canAccess(role: UserRole, allowed: readonly UserRole[]): boolean {
   return allowed.includes(role);
+}
+
+/** SUPER_ADMIN can see across organizations; everyone else is confined to their own. */
+export function canAccessOrganization(
+  role: UserRole,
+  userOrgId: string | null,
+  targetOrgId: string,
+): boolean {
+  if (role === 'SUPER_ADMIN') return true;
+  return userOrgId !== null && userOrgId === targetOrgId;
 }

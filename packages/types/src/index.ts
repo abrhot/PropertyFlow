@@ -1,10 +1,10 @@
 /**
- * Shared domain types for the FieldTrack platform.
- * These interfaces are consumed by the API, web, and (where relevant) mobile apps
- * so the whole system agrees on a single shape for each entity.
+ * Shared domain types for the PropertyFlow platform.
+ * These interfaces are consumed by the API, web, and mobile apps so the whole
+ * system agrees on a single shape for each entity and API contract.
  */
 
-import type { UserRole, WorkOrderStatus, WorkOrderPriority } from '@fieldtrack/constants';
+import type { UserRole, SubscriptionTier } from '@propertyflow/constants';
 
 export type ID = string;
 
@@ -15,60 +15,72 @@ export interface Timestamped {
   updatedAt: ISODateString;
 }
 
-export interface Company extends Timestamped {
+/** A management company — the "tenant" of the multi-tenant SaaS platform. */
+export interface Organization extends Timestamped {
   id: ID;
   name: string;
+  slug: string;
+  subscriptionTier: SubscriptionTier;
   isActive: boolean;
 }
 
 export interface User extends Timestamped {
   id: ID;
-  companyId: ID;
+  /** Null for SUPER_ADMIN (platform-wide, not tied to an organization). */
+  organizationId: ID | null;
   email: string;
   fullName: string;
   role: UserRole;
   isActive: boolean;
+  emailVerifiedAt: ISODateString | null;
 }
 
-export interface Customer extends Timestamped {
+/** The authenticated user shape returned to clients (never includes secrets). */
+export interface AuthUser {
   id: ID;
-  companyId: ID;
-  name: string;
-  email?: string;
-  phone?: string;
+  organizationId: ID | null;
+  email: string;
+  fullName: string;
+  role: UserRole;
 }
 
-export interface Address {
+/**
+ * The principal attached to each authenticated request, derived purely from the
+ * access token (no DB hit). Load the full user record when you need email/name.
+ */
+export interface RequestUser {
   id: ID;
-  line1: string;
-  line2?: string;
-  city: string;
-  region?: string;
-  postalCode?: string;
-  country: string;
-  latitude?: number;
-  longitude?: number;
+  organizationId: ID | null;
+  role: UserRole;
 }
 
-export interface WorkOrder extends Timestamped {
-  id: ID;
-  companyId: ID;
-  customerId: ID;
-  title: string;
-  description?: string;
-  status: WorkOrderStatus;
-  priority: WorkOrderPriority;
-  assignedTechnicianId?: ID;
-  scheduledFor?: ISODateString;
-  addressId?: ID;
+// ---- Auth API contracts (DTOs) ----
+
+export interface RegisterRequest {
+  organizationName: string;
+  fullName: string;
+  email: string;
+  password: string;
 }
 
-export interface WorkOrderTask {
-  id: ID;
-  workOrderId: ID;
-  title: string;
-  isComplete: boolean;
+export interface LoginRequest {
+  email: string;
+  password: string;
 }
 
-// Re-export the enum-like unions so consumers can import them from @fieldtrack/types too.
-export type { UserRole, WorkOrderStatus, WorkOrderPriority };
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+/** Login/register/refresh responses. The refresh token is delivered via httpOnly cookie. */
+export interface AuthResponse {
+  accessToken: string;
+  user: AuthUser;
+}
+
+export type { UserRole, SubscriptionTier };
