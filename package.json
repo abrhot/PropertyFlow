@@ -8,7 +8,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --concurrency=15",
+    "dev:apps": "turbo run dev --filter=@propertyflow/web --filter=@propertyflow/api",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
