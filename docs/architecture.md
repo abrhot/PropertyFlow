@@ -56,3 +56,21 @@ packages before apps via `dependsOn: ["^build"]`.
 
 Apps depend on packages, never the reverse. `constants` is the lowest-level
 shared package; `config` provides the shared tsconfig to everything.
+
+## Monorepo conventions (keep us aligned)
+
+- **Cross-package imports go through the package name** (`@propertyflow/*`), never
+  relative paths like `../../packages/...`.
+- **Share aggressively:** types, validation, business logic, and constants live in
+  `packages/*`; apps only compose UI, routing, and app-specific wiring.
+- **Internal deps use the `workspace:*` protocol** and are built before dependents
+  via Turborepo `dependsOn: ["^build"]`.
+- **One version per shared tool** across the repo (TypeScript, Zod, React, etc.) —
+  no per-package drift.
+- **Shared config is centralized:** TS via `@propertyflow/config`, **ESLint** via the
+  root `eslint.config.mjs` (one flat config for all workspaces), Prettier via the
+  root `.prettierrc`.
+- **Run tasks from the root:** `pnpm typecheck`, `pnpm lint`, `pnpm build`,
+  `pnpm dev` (or `pnpm dev:apps` for just web + api).
+- **One lockfile** (`pnpm-lock.yaml`) at the root; a single `docker-compose.yml`
+  for local infra.

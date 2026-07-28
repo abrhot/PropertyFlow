@@ -1,9 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { AccessTokenPayload, RefreshTokenPayload } from '@propertyflow/auth';
@@ -29,7 +24,7 @@ export interface AuthResult {
   user: AuthUser;
 }
 
-interface RequestContext {
+export interface RequestContext {
   userAgent?: string;
   ipAddress?: string;
 }
@@ -74,7 +69,7 @@ export class AuthService {
       });
     });
 
-    return this.issueSession(this.toAuthUser(user), ctx);
+    return this.createSession(this.toAuthUser(user), ctx);
   }
 
   // ------------------------------------------------------------------- login
@@ -85,7 +80,10 @@ export class AuthService {
     // Constant-ish behavior: always run a hash compare to reduce user enumeration.
     const valid = user
       ? await bcrypt.compare(input.password, user.passwordHash)
-      : await bcrypt.compare(input.password, '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidin');
+      : await bcrypt.compare(
+          input.password,
+          '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidin',
+        );
 
     if (!user || !valid) {
       throw new UnauthorizedException('Invalid email or password');
@@ -94,7 +92,7 @@ export class AuthService {
       throw new UnauthorizedException('This account is disabled');
     }
 
-    return this.issueSession(this.toAuthUser(user), ctx);
+    return this.createSession(this.toAuthUser(user), ctx);
   }
 
   // ----------------------------------------------------------------- refresh
@@ -144,7 +142,7 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    return this.issueSession(this.toAuthUser(stored.user), ctx);
+    return this.createSession(this.toAuthUser(stored.user), ctx);
   }
 
   // ------------------------------------------------------------------ logout
@@ -174,7 +172,9 @@ export class AuthService {
 
   // ------------------------------------------------------- forgot / reset pw
 
-  async forgotPassword(input: ForgotPasswordInput): Promise<{ message: string; devToken?: string }> {
+  async forgotPassword(
+    input: ForgotPasswordInput,
+  ): Promise<{ message: string; devToken?: string }> {
     const genericMessage =
       'If an account exists for that email, a password reset link has been sent.';
     const user = await this.prisma.client.user.findUnique({ where: { email: input.email } });
@@ -225,7 +225,8 @@ export class AuthService {
 
   // --------------------------------------------------------------- internals
 
-  private async issueSession(user: AuthUser, ctx: RequestContext): Promise<AuthResult> {
+  /** Issues the same access/refresh session for login and invitation acceptance. */
+  async createSession(user: AuthUser, ctx: RequestContext): Promise<AuthResult> {
     const accessToken = await this.signAccessToken(user);
     const { token: refreshToken, expiresAt, jti } = await this.signRefreshToken(user.id);
 

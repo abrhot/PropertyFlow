@@ -1,6 +1,4 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { REFRESH_TOKEN_COOKIE } from '@propertyflow/constants';
 import type { AuthResponse, AuthUser, RequestUser } from '@propertyflow/types';
 import {
   forgotPasswordSchema,
@@ -13,17 +11,18 @@ import {
   type ResetPasswordInput,
 } from '@propertyflow/validation';
 import type { Request, Response } from 'express';
-import type { Env } from '../config/env.validation';
+import { CheckAbility } from '../common/decorators/check-ability.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { AuthService, type AuthResult } from './auth.service';
+import { AuthService } from './auth.service';
+import { SessionCookieService } from './session-cookie.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly config: ConfigService<Env, true>,
+    private readonly sessionCookies: SessionCookieService,
   ) {}
 
   @Public()
@@ -34,7 +33,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
     const result = await this.authService.register(dto, this.ctx(req));
-    return this.completeSession(result, res);
+    return this.sessionCookies.complete(result, res);
   }
 
   @Public()
@@ -46,7 +45,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
     const result = await this.authService.login(dto, this.ctx(req));
-    return this.completeSession(result, res);
+    return this.sessionCookies.complete(result, res);
   }
 
   @Public()
@@ -56,9 +55,9 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
-    const token = this.readRefreshCookie(req);
+    const token = this.sessionCookies.readRefreshToken(req);
     const result = await this.authService.refresh(token, this.ctx(req));
-    return this.completeSession(result, res);
+    return this.sessionCookies.complete(result, res);
   }
 
   @Public()
@@ -68,12 +67,13 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ message: string }> {
-    await this.authService.logout(this.readRefreshCookie(req));
-    res.clearCookie(REFRESH_TOKEN_COOKIE, this.cookieOptions(0));
+    await this.authService.logout(this.sessionCookies.readRefreshToken(req));
+    this.sessionCookies.clear(res);
     return { message: 'Logged out' };
   }
 
   @Get('me')
+  @CheckAbility({ action: 'read', subject: 'User' })
   me(@CurrentUser() user: RequestUser): Promise<AuthUser> {
     return this.authService.me(user.id);
   }
@@ -94,28 +94,6 @@ export class AuthController {
     @Body(new ZodValidationPipe(resetPasswordSchema)) dto: ResetPasswordInput,
   ): Promise<{ message: string }> {
     return this.authService.resetPassword(dto);
-  }
-
-  // --------------------------------------------------------------- internals
-
-  private completeSession(result: AuthResult, res: Response): AuthResponse {
-    res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, this.cookieOptions(result.refreshMaxAgeMs));
-    return { accessToken: result.accessToken, user: result.user };
-  }
-
-  private readRefreshCookie(req: Request): string | undefined {
-    return (req.cookies as Record<string, string> | undefined)?.[REFRESH_TOKEN_COOKIE];
-  }
-
-  private cookieOptions(maxAgeMs: number) {
-    return {
-      httpOnly: true,
-      secure: this.config.get('COOKIE_SECURE', { infer: true }),
-      sameSite: 'lax' as const,
-      domain: this.config.get('COOKIE_DOMAIN', { infer: true }),
-      path: '/api/auth',
-      maxAge: maxAgeMs,
-    };
   }
 
   private ctx(req: Request) {

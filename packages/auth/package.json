@@ -10,13 +10,16 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch --preserveWatchOutput",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@casl/ability": "^7.0.1",
     "@propertyflow/constants": "workspace:*"
   },
   "devDependencies": {

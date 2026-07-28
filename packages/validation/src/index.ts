@@ -3,6 +3,7 @@
  * web/mobile apps (form validation), so rules stay in sync (single source of truth).
  */
 
+import { INVITABLE_ROLES } from '@propertyflow/constants';
 import { z } from 'zod';
 
 /** Reused password policy. Adjust here to change it everywhere. */
@@ -40,3 +41,20 @@ export const resetPasswordSchema = z.object({
   password: passwordSchema,
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export const createInvitationSchema = z.object({
+  email: emailSchema,
+  role: z.enum(INVITABLE_ROLES),
+});
+export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
+
+export const invitationTokenSchema = z.object({
+  token: z.string().trim().min(32, 'Invitation token is invalid').max(256),
+});
+export type InvitationTokenInput = z.infer<typeof invitationTokenSchema>;
+
+export const acceptInvitationSchema = invitationTokenSchema.extend({
+  fullName: z.string().trim().min(2, 'Full name is too short').max(120),
+  password: passwordSchema,
+});
+export type AcceptInvitationInput = z.infer<typeof acceptInvitationSchema>;

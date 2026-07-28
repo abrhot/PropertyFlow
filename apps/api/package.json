@@ -6,7 +6,6 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
-    "lint": "eslint \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

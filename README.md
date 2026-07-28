@@ -67,13 +67,15 @@ Full auth is built and tested end-to-end:
   (rotated, httpOnly cookie, reuse-detection)
 - **Refresh** and **/me**
 - **Forgot / reset password** (hashed, single-use, expiring tokens)
-- **RBAC** via `@Roles(...)` + a global JWT guard, scoped by organization
+- **Secure role invitations** with hashed, single-use tokens
+- **CASL authorization** via `@CheckAbility(...)`, scoped by organization and resource attributes
 - Passwords hashed with bcrypt; request bodies validated with shared **Zod** schemas
 
 Web UI (shadcn/ui): `/login`, `/register`, `/forgot-password`, `/reset-password`,
 and a protected `/dashboard`.
 
 See [`docs/api.md`](docs/api.md) for endpoints.
+See [`docs/authorization.md`](docs/authorization.md) for roles and CASL usage.
 
 ## Common scripts
 

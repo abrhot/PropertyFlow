@@ -40,25 +40,27 @@ model Organization {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  users User[]
+  users       User[]
+  invitations OrganizationInvitation[]
 }
 
 model User {
-  id              String    @id @default(uuid())
+  id              String        @id @default(uuid())
   /// Null for SUPER_ADMIN (platform-wide, not tied to an organization).
   organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId  String?
-  email           String    @unique
+  email           String        @unique
   passwordHash    String
   fullName        String
-  role            UserRole  @default(TENANT)
-  isActive        Boolean   @default(true)
+  role            UserRole      @default(TENANT)
+  isActive        Boolean       @default(true)
   emailVerifiedAt DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  invitationsSent     OrganizationInvitation[] @relation("InvitationsSent")
 
   @@index([organizationId])
 }
@@ -89,4 +91,24 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+}
+
+/// Single-use invitation to join an organization with a server-assigned role.
+/// Only a SHA-256 hash of the bearer token is persisted.
+model OrganizationInvitation {
+  id             String       @id @default(uuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  email          String
+  role           UserRole
+  tokenHash      String       @unique
+  invitedBy      User         @relation("InvitationsSent", fields: [invitedById], references: [id], onDelete: Cascade)
+  invitedById    String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([organizationId, email])
 }

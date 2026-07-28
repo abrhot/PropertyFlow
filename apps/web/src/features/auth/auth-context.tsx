@@ -1,7 +1,7 @@
 'use client';
 
 import type { AuthUser } from '@propertyflow/types';
-import type { LoginInput, RegisterInput } from '@propertyflow/validation';
+import type { AcceptInvitationInput, LoginInput, RegisterInput } from '@propertyflow/validation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, type ReactNode } from 'react';
 import { api } from '@/lib/api';
@@ -14,6 +14,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
+  acceptInvitation: (input: AcceptInvitationInput) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -46,6 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (res) => queryClient.setQueryData(ME_QUERY_KEY, res.user),
   });
 
+  const acceptInvitationMutation = useMutation({
+    mutationFn: (input: AcceptInvitationInput) => api.acceptInvitation(input),
+    onSuccess: (res) => queryClient.setQueryData(ME_QUERY_KEY, res.user),
+  });
+
   const logoutMutation = useMutation({
     mutationFn: () => api.logout(),
     onSuccess: () => {
@@ -63,6 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     register: async (input) => {
       await registerMutation.mutateAsync(input);
+    },
+    acceptInvitation: async (input) => {
+      await acceptInvitationMutation.mutateAsync(input);
     },
     logout: async () => {
       await logoutMutation.mutateAsync();

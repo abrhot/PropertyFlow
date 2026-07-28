@@ -9,10 +9,16 @@
  */
 
 import type {
+  AcceptInvitationRequest,
   AuthResponse,
   AuthUser,
+  CreateInvitationRequest,
+  CreateInvitationResponse,
   ForgotPasswordRequest,
+  InvitationPreview,
+  InvitationTokenRequest,
   LoginRequest,
+  OrganizationInvitationSummary,
   RegisterRequest,
   ResetPasswordRequest,
 } from '@propertyflow/types';
@@ -57,11 +63,7 @@ export class ApiClient {
     return this.accessToken;
   }
 
-  private async request<T>(
-    path: string,
-    init: RequestInit = {},
-    retryOn401 = true,
-  ): Promise<T> {
+  private async request<T>(path: string, init: RequestInit = {}, retryOn401 = true): Promise<T> {
     const headers = new Headers(init.headers);
     headers.set('Content-Type', 'application/json');
     if (this.accessToken) headers.set('Authorization', `Bearer ${this.accessToken}`);
@@ -141,9 +143,7 @@ export class ApiClient {
     return this.request<AuthUser>('/auth/me', { method: 'GET' });
   }
 
-  forgotPassword(
-    input: ForgotPasswordRequest,
-  ): Promise<{ message: string; devToken?: string }> {
+  forgotPassword(input: ForgotPasswordRequest): Promise<{ message: string; devToken?: string }> {
     return this.request('/auth/forgot-password', {
       method: 'POST',
       body: JSON.stringify(input),
@@ -155,6 +155,39 @@ export class ApiClient {
       method: 'POST',
       body: JSON.stringify(input),
     });
+  }
+
+  // ---- Organization invitations ----
+
+  listInvitations(): Promise<OrganizationInvitationSummary[]> {
+    return this.request('/invitations', { method: 'GET' });
+  }
+
+  createInvitation(input: CreateInvitationRequest): Promise<CreateInvitationResponse> {
+    return this.request('/invitations', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  revokeInvitation(id: string): Promise<{ message: string }> {
+    return this.request(`/invitations/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  }
+
+  previewInvitation(input: InvitationTokenRequest): Promise<InvitationPreview> {
+    return this.request('/invitations/preview', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  async acceptInvitation(input: AcceptInvitationRequest): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>('/invitations/accept', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    this.setAccessToken(response.accessToken);
+    return response;
   }
 }
 

@@ -19,7 +19,6 @@ async function bootstrap() {
 
   const port = config.get('PORT', { infer: true });
   await app.listen(port);
-  // eslint-disable-next-line no-console
   console.log(`PropertyFlow API listening on http://localhost:${port}/api`);
 }
 

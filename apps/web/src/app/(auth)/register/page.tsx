@@ -3,11 +3,12 @@
 import { ApiError } from '@propertyflow/api-client';
 import { registerSchema, type RegisterInput } from '@propertyflow/validation';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
+import { Building2, Loader2, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -41,11 +42,25 @@ export default function RegisterPage() {
   }
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
+      <div className="bg-gradient-to-br from-primary to-primary/75 px-6 py-7 text-primary-foreground">
+        <Building2 className="h-7 w-7" aria-hidden="true" />
+        <h2 className="mt-3 text-2xl font-bold tracking-tight">Create your organization</h2>
+        <p className="mt-1 text-sm text-primary-foreground/80">
+          Start a secure workspace for your property team.
+        </p>
+      </div>
       <CardHeader>
-        <CardTitle>Create your account</CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-lg">Administrator account</CardTitle>
+          <Badge variant="outline" className="gap-1">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            ORG_ADMIN
+          </Badge>
+        </div>
         <CardDescription>
-          Set up your management company and become its first administrator.
+          The first account is securely assigned Organization Admin. You can invite every other role
+          from Settings after registration.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>

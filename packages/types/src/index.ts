@@ -4,7 +4,7 @@
  * system agrees on a single shape for each entity and API contract.
  */
 
-import type { UserRole, SubscriptionTier } from '@propertyflow/constants';
+import type { InvitableRole, SubscriptionTier, UserRole } from '@propertyflow/constants';
 
 export type ID = string;
 
@@ -77,10 +77,48 @@ export interface ResetPasswordRequest {
   password: string;
 }
 
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+
+export interface OrganizationInvitationSummary {
+  id: ID;
+  email: string;
+  role: InvitableRole;
+  status: InvitationStatus;
+  expiresAt: ISODateString;
+  createdAt: ISODateString;
+}
+
+export interface CreateInvitationRequest {
+  email: string;
+  role: InvitableRole;
+}
+
+export interface CreateInvitationResponse {
+  invitation: OrganizationInvitationSummary;
+  /** Development-only acceptance URL. Production sends this by email. */
+  devAcceptUrl?: string;
+}
+
+export interface InvitationTokenRequest {
+  token: string;
+}
+
+export interface AcceptInvitationRequest extends InvitationTokenRequest {
+  fullName: string;
+  password: string;
+}
+
+export interface InvitationPreview {
+  email: string;
+  organizationName: string;
+  role: InvitableRole;
+  expiresAt: ISODateString;
+}
+
 /** Login/register/refresh responses. The refresh token is delivered via httpOnly cookie. */
 export interface AuthResponse {
   accessToken: string;
   user: AuthUser;
 }
 
-export type { UserRole, SubscriptionTier };
+export type { InvitableRole, SubscriptionTier, UserRole };

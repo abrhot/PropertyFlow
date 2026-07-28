@@ -21,6 +21,8 @@ pnpm --filter @propertyflow/database db:studio         # inspect data
 - **RefreshToken** — server-side record of issued refresh tokens (SHA-256 hash,
   expiry, revocation) enabling rotation + reuse detection.
 - **PasswordResetToken** — hashed, single-use, expiring reset tokens.
+- **OrganizationInvitation** — organization-scoped role invitation with a
+  hashed, single-use, expiring token and acceptance/revocation audit fields.
 
 ## Multi-tenant isolation
 
