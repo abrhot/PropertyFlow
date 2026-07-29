@@ -40,6 +40,25 @@ Invitation tokens are random, single-use, expire after seven days, and are
 stored only as SHA-256 hashes. The acceptance payload never contains a role or
 organization identifier.
 
+## Property endpoints
+
+| Method | Path                            | Auth                   | Body / Notes                                                              |
+| ------ | ------------------------------- | ---------------------- | ------------------------------------------------------------------------- |
+| GET    | `/properties`                   | `read Property`        | Query: `search`, `type`, `includeInactive`. Returns `{ properties, summary }`. |
+| GET    | `/properties/owners`            | `update Property`      | Owners in the caller's organization who can be assigned a property.       |
+| GET    | `/properties/:id`               | `read Property`        | Returns the property with its units.                                      |
+| POST   | `/properties`                   | `create Property`      | Address, type, optional `ownerId`, `yearBuilt`, `notes`.                  |
+| PATCH  | `/properties/:id`               | `update Property`      | Partial update; `ownerId` must be an owner in the same organization.      |
+| DELETE | `/properties/:id`               | `delete Property`      | Cascades to the property's units.                                         |
+| POST   | `/properties/:id/units`         | `update Property`      | `{ label, bedrooms, bathrooms, squareFeet?, marketRentCents, status }`.   |
+| PATCH  | `/properties/:id/units/:unitId` | `update Property`      | Partial update of a unit.                                                 |
+| DELETE | `/properties/:id/units/:unitId` | `update Property`      | Removes a unit from the property.                                         |
+
+Rent is transmitted in **cents** (`marketRentCents`) so arithmetic stays exact;
+the web form converts at the edge. Units are only addressable through their
+parent property and inherit its permissions. A property outside the caller's
+scope returns `404` rather than `403`, so ids cannot be probed for existence.
+
 ## Token model
 
 - **Access token**: short-lived JWT (default 15m), sent as `Authorization: Bearer`.
@@ -60,5 +79,5 @@ organization identifier.
 
 ## Planned modules
 
-Organizations & portfolio, Properties/Units, Leases, Rent & payments (Stripe),
-Maintenance work orders, Accounting/reporting, Messaging, Notifications.
+Leases, Rent & payments (Stripe), Maintenance work orders,
+Accounting/reporting, Messaging, Notifications.

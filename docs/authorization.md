@@ -66,6 +66,27 @@ if (!ability.can('update', propertySubject)) {
 Database queries must still include `organizationId`. CASL is defense in depth,
 not a replacement for tenant-scoped queries.
 
+## Filtering a list by the caller's rules
+
+Listing endpoints must not load a whole organization and filter afterwards.
+`apps/api/src/properties/property-access.ts` shows the pattern: read the
+caller's own CASL rules for the subject and turn them into a Prisma filter, so
+the query and the permission check cannot drift apart.
+
+```ts
+const scope = propertyScopeFor(ability, 'read'); // null means "match nothing"
+const records = await this.db.property.findMany({ where: { AND: [scope, ...filters] } });
+const visible = records.filter((record) => canAccessProperty(ability, 'read', record));
+```
+
+The translation is only an optimization. Every row still goes through
+`ability.can` before it leaves the service, which keeps the result correct even
+for rule shapes the translation cannot express, such as inverted rules. This is
+what limits an `OWNER` to properties whose `ownerId` matches them.
+
+Properties are the reference implementation of this pattern: see
+`apps/api/src/properties/` for a full module, and `docs/api.md` for its routes.
+
 ## Protecting a web page
 
 Use the same shared ability for navigation and page-level UX:

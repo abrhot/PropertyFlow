@@ -24,6 +24,16 @@ pnpm --filter @propertyflow/database db:studio         # inspect data
 - **OrganizationInvitation** — organization-scoped role invitation with a
   hashed, single-use, expiring token and acceptance/revocation audit fields.
 
+## Phase 2 tables (portfolio)
+
+- **Property** — a building in an organization's portfolio: address, `PropertyType`,
+  optional `yearBuilt`/`notes`, and a nullable `ownerId`. That `ownerId` is what
+  scopes the `OWNER` role, so it is set to null (not cascaded) if the owner is removed.
+- **Unit** — a rentable space inside a Property. Rent is stored as
+  `marketRentCents` (an integer) so money arithmetic stays exact. Labels are
+  unique per property, and units are scoped to an organization through their
+  property rather than a duplicated `organizationId`.
+
 ## Multi-tenant isolation
 
 Every tenant-owned entity carries an `organizationId`. Authorization is scoped by
@@ -32,10 +42,16 @@ depth, consider PostgreSQL Row-Level Security as the model grows (see PRD §10).
 
 ## Planned tables (later phases)
 
-Property, Unit, Lease, RentSchedule, Payment, MaintenanceRequest, Document,
-Message, Notification, OwnerStatement — plus the SaaS billing/subscription layer.
+Lease, RentSchedule, Payment, MaintenanceRequest, Document, Message,
+Notification, OwnerStatement — plus the SaaS billing/subscription layer.
+
+## Seed data
+
+`pnpm --filter @propertyflow/database db:seed` creates a demo organization with
+one user per role and a three-property portfolio. Two properties are assigned to
+`owner@demo.test` and one deliberately is not, which makes owner scoping visible.
 
 ## Keeping enums in sync
 
-Prisma enums (`UserRole`, `SubscriptionTier`) mirror `packages/constants`. Update
-both together so the API and clients agree.
+Prisma enums (`UserRole`, `SubscriptionTier`, `PropertyType`, `UnitStatus`)
+mirror `packages/constants`. Update both together so the API and clients agree.

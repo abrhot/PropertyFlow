@@ -14,14 +14,30 @@ import type {
   AuthUser,
   CreateInvitationRequest,
   CreateInvitationResponse,
+  CreatePropertyRequest,
+  CreateUnitRequest,
   ForgotPasswordRequest,
   InvitationPreview,
   InvitationTokenRequest,
   LoginRequest,
   OrganizationInvitationSummary,
+  Property,
+  PropertyDetail,
+  PropertyListResponse,
+  PropertyOwnerSummary,
+  PropertyType,
   RegisterRequest,
   ResetPasswordRequest,
+  Unit,
+  UpdatePropertyRequest,
+  UpdateUnitRequest,
 } from '@propertyflow/types';
+
+export interface ListPropertiesParams {
+  search?: string;
+  type?: PropertyType;
+  includeInactive?: boolean;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -188,6 +204,61 @@ export class ApiClient {
     });
     this.setAccessToken(response.accessToken);
     return response;
+  }
+
+  // ---- Properties & units ----
+
+  listProperties(params: ListPropertiesParams = {}): Promise<PropertyListResponse> {
+    const query = new URLSearchParams();
+    if (params.search) query.set('search', params.search);
+    if (params.type) query.set('type', params.type);
+    if (params.includeInactive) query.set('includeInactive', 'true');
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return this.request(`/properties${suffix}`, { method: 'GET' });
+  }
+
+  listPropertyOwners(): Promise<PropertyOwnerSummary[]> {
+    return this.request('/properties/owners', { method: 'GET' });
+  }
+
+  getProperty(id: string): Promise<PropertyDetail> {
+    return this.request(`/properties/${encodeURIComponent(id)}`, { method: 'GET' });
+  }
+
+  createProperty(input: CreatePropertyRequest): Promise<Property> {
+    return this.request('/properties', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  updateProperty(id: string, input: UpdatePropertyRequest): Promise<Property> {
+    return this.request(`/properties/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  deleteProperty(id: string): Promise<{ message: string }> {
+    return this.request(`/properties/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  }
+
+  createUnit(propertyId: string, input: CreateUnitRequest): Promise<Unit> {
+    return this.request(`/properties/${encodeURIComponent(propertyId)}/units`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  updateUnit(propertyId: string, unitId: string, input: UpdateUnitRequest): Promise<Unit> {
+    return this.request(
+      `/properties/${encodeURIComponent(propertyId)}/units/${encodeURIComponent(unitId)}`,
+      { method: 'PATCH', body: JSON.stringify(input) },
+    );
+  }
+
+  deleteUnit(propertyId: string, unitId: string): Promise<{ message: string }> {
+    return this.request(
+      `/properties/${encodeURIComponent(propertyId)}/units/${encodeURIComponent(unitId)}`,
+      { method: 'DELETE' },
+    );
   }
 }
 

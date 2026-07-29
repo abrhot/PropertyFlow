@@ -45,6 +45,35 @@ export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 export const SUBSCRIPTION_TIERS = ['TRIAL', 'STARTER', 'GROWTH', 'ENTERPRISE'] as const;
 export type SubscriptionTier = (typeof SUBSCRIPTION_TIERS)[number];
 
+export const PROPERTY_TYPES = [
+  'SINGLE_FAMILY',
+  'MULTI_FAMILY',
+  'APARTMENT',
+  'CONDO',
+  'TOWNHOUSE',
+  'COMMERCIAL',
+] as const;
+export type PropertyType = (typeof PROPERTY_TYPES)[number];
+
+export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
+  SINGLE_FAMILY: 'Single family',
+  MULTI_FAMILY: 'Multi family',
+  APARTMENT: 'Apartment building',
+  CONDO: 'Condominium',
+  TOWNHOUSE: 'Townhouse',
+  COMMERCIAL: 'Commercial',
+};
+
+export const UNIT_STATUSES = ['VACANT', 'OCCUPIED', 'MAINTENANCE', 'UNAVAILABLE'] as const;
+export type UnitStatus = (typeof UNIT_STATUSES)[number];
+
+export const UNIT_STATUS_LABELS: Record<UnitStatus, string> = {
+  VACANT: 'Vacant',
+  OCCUPIED: 'Occupied',
+  MAINTENANCE: 'Under maintenance',
+  UNAVAILABLE: 'Unavailable',
+};
+
 export const MAINTENANCE_STATUSES = [
   'SUBMITTED',
   'ASSIGNED',

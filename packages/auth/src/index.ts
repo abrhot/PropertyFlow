@@ -12,6 +12,7 @@ import {
   subject,
   type ForcedSubject,
   type MongoAbility,
+  type RuleOf,
 } from '@casl/ability';
 import { APP_SECTIONS, type AppSection, type UserRole } from '@propertyflow/constants';
 
@@ -68,6 +69,8 @@ export type ResourceSubject = {
 }[DomainSubject];
 export type AppSubject = PolicySubject | ResourceSubject;
 export type AppAbility = MongoAbility<[AppAction, AppSubject]>;
+/** A single rule of an {@link AppAbility}, as returned by `ability.rulesFor`. */
+export type AppRule = RuleOf<AppAbility>;
 
 /** Minimum identity needed to construct an ability. */
 export interface AbilityUser {

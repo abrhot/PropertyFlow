@@ -4,7 +4,13 @@
  * system agrees on a single shape for each entity and API contract.
  */
 
-import type { InvitableRole, SubscriptionTier, UserRole } from '@propertyflow/constants';
+import type {
+  InvitableRole,
+  PropertyType,
+  SubscriptionTier,
+  UnitStatus,
+  UserRole,
+} from '@propertyflow/constants';
 
 export type ID = string;
 
@@ -121,4 +127,99 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
-export type { InvitableRole, SubscriptionTier, UserRole };
+// ---- Portfolio: properties & units ----
+
+export interface PropertyAddress {
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
+export interface Unit extends Timestamped {
+  id: ID;
+  propertyId: ID;
+  label: string;
+  bedrooms: number;
+  bathrooms: number;
+  squareFeet: number | null;
+  /** Minor currency units (cents) so rent arithmetic stays exact. */
+  marketRentCents: number;
+  status: UnitStatus;
+}
+
+/** Aggregate figures the UI shows without loading every unit. */
+export interface PropertyStats {
+  unitCount: number;
+  occupiedUnits: number;
+  vacantUnits: number;
+  /** Combined market rent of all units, in cents. */
+  monthlyRentCents: number;
+  /** Occupied share of units, 0-100, rounded to the nearest whole percent. */
+  occupancyRate: number;
+}
+
+export interface PropertyOwnerSummary {
+  id: ID;
+  fullName: string;
+  email: string;
+}
+
+export interface Property extends Timestamped, PropertyAddress {
+  id: ID;
+  organizationId: ID;
+  ownerId: ID | null;
+  name: string;
+  type: PropertyType;
+  yearBuilt: number | null;
+  notes: string | null;
+  isActive: boolean;
+  owner: PropertyOwnerSummary | null;
+  stats: PropertyStats;
+}
+
+/** A property plus its units, returned by the detail endpoint. */
+export interface PropertyDetail extends Property {
+  units: Unit[];
+}
+
+/** Portfolio-wide totals for the properties list header. */
+export interface PropertyPortfolioSummary {
+  propertyCount: number;
+  unitCount: number;
+  occupiedUnits: number;
+  monthlyRentCents: number;
+  occupancyRate: number;
+}
+
+export interface PropertyListResponse {
+  properties: Property[];
+  summary: PropertyPortfolioSummary;
+}
+
+export interface CreatePropertyRequest extends Omit<PropertyAddress, 'addressLine2' | 'country'> {
+  name: string;
+  type: PropertyType;
+  addressLine2?: string;
+  country?: string;
+  yearBuilt?: number;
+  notes?: string;
+  ownerId?: ID;
+}
+
+export type UpdatePropertyRequest = Partial<CreatePropertyRequest> & { isActive?: boolean };
+
+export interface CreateUnitRequest {
+  label: string;
+  bedrooms: number;
+  bathrooms: number;
+  squareFeet?: number;
+  marketRentCents: number;
+  status: UnitStatus;
+}
+
+export type UpdateUnitRequest = Partial<CreateUnitRequest>;
+
+export type { InvitableRole, PropertyType, SubscriptionTier, UnitStatus, UserRole };

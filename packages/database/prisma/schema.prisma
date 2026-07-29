@@ -1,7 +1,7 @@
 // PropertyFlow database schema (Prisma + PostgreSQL).
-// Phase 1 scope: authentication & multi-tenancy (Organizations, Users, RBAC,
-// refresh tokens, password resets). Property/Unit/Lease/Payment models arrive
-// in later phases (see docs/requirements.md).
+// Phase 1: authentication & multi-tenancy (Organizations, Users, RBAC, refresh
+// tokens, password resets). Phase 2: the property portfolio (Property, Unit).
+// Lease/Payment models arrive in later phases (see docs/requirements.md).
 
 generator client {
   provider = "prisma-client-js"
@@ -30,6 +30,22 @@ enum SubscriptionTier {
   ENTERPRISE
 }
 
+enum PropertyType {
+  SINGLE_FAMILY
+  MULTI_FAMILY
+  APARTMENT
+  CONDO
+  TOWNHOUSE
+  COMMERCIAL
+}
+
+enum UnitStatus {
+  VACANT
+  OCCUPIED
+  MAINTENANCE
+  UNAVAILABLE
+}
+
 /// A management company: the "tenant" of the multi-tenant SaaS platform.
 model Organization {
   id               String           @id @default(uuid())
@@ -42,6 +58,7 @@ model Organization {
 
   users       User[]
   invitations OrganizationInvitation[]
+  properties  Property[]
 }
 
 model User {
@@ -61,6 +78,7 @@ model User {
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   invitationsSent     OrganizationInvitation[] @relation("InvitationsSent")
+  propertiesOwned     Property[]               @relation("PropertiesOwned")
 
   @@index([organizationId])
 }
@@ -111,4 +129,53 @@ model OrganizationInvitation {
 
   @@index([organizationId])
   @@index([organizationId, email])
+}
+
+/// A building or address in an organization's portfolio.
+/// `ownerId` is what scopes the OWNER role to its own properties.
+model Property {
+  id             String       @id @default(uuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  /// The property owner. Kept nullable so a property survives owner removal.
+  owner          User?        @relation("PropertiesOwned", fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId        String?
+  name           String
+  type           PropertyType @default(APARTMENT)
+  addressLine1   String
+  addressLine2   String?
+  city           String
+  state          String
+  postalCode     String
+  country        String       @default("US")
+  yearBuilt      Int?
+  notes          String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  units Unit[]
+
+  @@index([organizationId])
+  @@index([organizationId, ownerId])
+}
+
+/// A rentable space within a property. Scoped to an organization through
+/// its property, so every query joins on `property.organizationId`.
+model Unit {
+  id              String     @id @default(uuid())
+  property        Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId      String
+  label           String
+  bedrooms        Int        @default(0)
+  bathrooms       Float      @default(1)
+  squareFeet      Int?
+  /// Minor currency units (cents) so rent arithmetic stays exact.
+  marketRentCents Int        @default(0)
+  status          UnitStatus @default(VACANT)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([propertyId, label])
+  @@index([propertyId])
 }
