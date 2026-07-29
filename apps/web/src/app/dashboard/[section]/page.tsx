@@ -2,12 +2,11 @@ import type { AppSection } from '@propertyflow/constants';
 import { notFound } from 'next/navigation';
 import { SectionPage } from '@/features/dashboard/section-page';
 
-// `properties` and `settings` are intentionally absent: they have dedicated
-// routes backed by real domain APIs rather than the generic preview page.
+// `properties`, `leases`, and `settings` are intentionally absent: they have
+// dedicated routes backed by real domain APIs rather than the generic preview page.
 const SECTIONS_BY_SLUG = {
   organizations: 'organizations',
   billing: 'billing',
-  leases: 'leases',
   applications: 'applications',
   payments: 'payments',
   maintenance: 'maintenance',

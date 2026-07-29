@@ -42,7 +42,7 @@ Accounting & reporting · Communication · Documents · Notifications · Analyti
 
 - **Phase 0 — Monorepo foundation:** tooling, shared packages, CI. ✅
 - **Phase 1 — Auth & multi-tenancy:** organizations, RBAC, login. ✅ *(implemented)*
-- **Phase 2 — Property & lease management:** properties, units ✅ *(implemented)*; leases next.
+- **Phase 2 — Property & lease management:** properties, units, leases ✅ *(implemented)*.
 - **Phase 3 — Rent collection:** Stripe, rent schedules, autopay, tenant portal.
 - **Phase 4 — Maintenance:** work orders + mobile app MVP.
 - **Phase 5 — Applications & screening:** listings, screening, e-signature.

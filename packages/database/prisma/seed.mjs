@@ -102,6 +102,49 @@ async function seedPortfolio(organizationId, usersByEmail) {
   return created;
 }
 
+function addMonths(date, months) {
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + months);
+  return result;
+}
+
+/** Puts the demo tenant on an active lease so the leases page has live data. */
+async function seedLeases(organizationId, usersByEmail) {
+  const tenant = usersByEmail.get('tenant@demo.test');
+  if (!tenant) return 0;
+
+  const existing = await prisma.lease.findFirst({
+    where: { organizationId, tenantId: tenant.id },
+    select: { id: true },
+  });
+  if (existing) return 0;
+
+  // Lease the first occupied unit of Maple Court to the demo tenant.
+  const unit = await prisma.unit.findFirst({
+    where: { property: { organizationId, name: 'Maple Court' }, status: 'OCCUPIED' },
+    orderBy: { label: 'asc' },
+    select: { id: true, marketRentCents: true },
+  });
+  if (!unit) return 0;
+
+  const start = new Date();
+  await prisma.lease.create({
+    data: {
+      organizationId,
+      unitId: unit.id,
+      tenantId: tenant.id,
+      status: 'ACTIVE',
+      startDate: start,
+      endDate: addMonths(start, 12),
+      rentCents: unit.marketRentCents,
+      depositCents: unit.marketRentCents,
+      notes: 'Standard 12-month residential lease.',
+    },
+  });
+
+  return 1;
+}
+
 async function main() {
   const passwordHash = await bcrypt.hash(PASSWORD, 12);
 
@@ -128,6 +171,7 @@ async function main() {
   }
 
   const createdProperties = await seedPortfolio(org.id, usersByEmail);
+  const createdLeases = await seedLeases(org.id, usersByEmail);
 
   console.log(`\nSeeded organization "${org.name}" and ${USERS.length} users.`);
   console.log(
@@ -135,6 +179,7 @@ async function main() {
       ? `Added ${createdProperties} propert${createdProperties === 1 ? 'y' : 'ies'}.`
       : 'Portfolio already present, left unchanged.',
   );
+  console.log(createdLeases ? `Added ${createdLeases} lease.` : 'Leases already present.');
   console.log(`Password for every seeded user: ${PASSWORD}\n`);
   for (const [email, , role] of USERS) console.log(`  ${role.padEnd(18)} ${email}`);
   console.log('');

@@ -40,9 +40,17 @@ Every tenant-owned entity carries an `organizationId`. Authorization is scoped b
 **both role and organization**. Enforce scoping in every query; for defense in
 depth, consider PostgreSQL Row-Level Security as the model grows (see PRD §10).
 
+## Phase 2 tables (leases)
+
+- **Lease** — a rental agreement between a tenant and the organization for one
+  unit: `LeaseStatus`, term dates, and `rentCents`/`depositCents` (integers).
+  `organizationId` is denormalized from the unit's property so tenant/owner
+  scoping and list queries stay a single-table lookup. A unit may hold only one
+  ACTIVE lease at a time, and lease activation keeps the unit's occupancy in step.
+
 ## Planned tables (later phases)
 
-Lease, RentSchedule, Payment, MaintenanceRequest, Document, Message,
+RentSchedule, Payment, MaintenanceRequest, Document, Message,
 Notification, OwnerStatement — plus the SaaS billing/subscription layer.
 
 ## Seed data
@@ -53,5 +61,6 @@ one user per role and a three-property portfolio. Two properties are assigned to
 
 ## Keeping enums in sync
 
-Prisma enums (`UserRole`, `SubscriptionTier`, `PropertyType`, `UnitStatus`)
-mirror `packages/constants`. Update both together so the API and clients agree.
+Prisma enums (`UserRole`, `SubscriptionTier`, `PropertyType`, `UnitStatus`,
+`LeaseStatus`) mirror `packages/constants`. Update both together so the API and
+clients agree.

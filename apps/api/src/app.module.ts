@@ -9,6 +9,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { validateEnv } from './config/env.validation';
 import { InvitationsModule } from './invitations/invitations.module';
+import { LeasesModule } from './leases/leases.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PropertiesModule } from './properties/properties.module';
 
@@ -19,6 +20,7 @@ import { PropertiesModule } from './properties/properties.module';
     AuthModule,
     InvitationsModule,
     PropertiesModule,
+    LeasesModule,
   ],
   controllers: [AppController],
   providers: [

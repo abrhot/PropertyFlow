@@ -6,6 +6,7 @@
 
 import type {
   InvitableRole,
+  LeaseStatus,
   PropertyType,
   SubscriptionTier,
   UnitStatus,
@@ -222,4 +223,69 @@ export interface CreateUnitRequest {
 
 export type UpdateUnitRequest = Partial<CreateUnitRequest>;
 
-export type { InvitableRole, PropertyType, SubscriptionTier, UnitStatus, UserRole };
+// ---- Leases ----
+
+/** Enough of the related unit/property/tenant to render a lease without extra calls. */
+export interface LeaseUnitSummary {
+  id: ID;
+  label: string;
+  propertyId: ID;
+  propertyName: string;
+}
+
+export interface LeaseTenantSummary {
+  id: ID;
+  fullName: string;
+  email: string;
+}
+
+export interface Lease extends Timestamped {
+  id: ID;
+  organizationId: ID;
+  unitId: ID;
+  tenantId: ID;
+  status: LeaseStatus;
+  startDate: ISODateString;
+  endDate: ISODateString;
+  /** Monthly rent in minor currency units (cents). */
+  rentCents: number;
+  depositCents: number;
+  notes: string | null;
+  unit: LeaseUnitSummary;
+  tenant: LeaseTenantSummary;
+  /** The owner of the leased unit's property, used for owner scoping. */
+  ownerId: ID | null;
+}
+
+export interface LeasePortfolioSummary {
+  leaseCount: number;
+  activeLeases: number;
+  /** Combined rent of active leases, in cents. */
+  monthlyRentCents: number;
+}
+
+export interface LeaseListResponse {
+  leases: Lease[];
+  summary: LeasePortfolioSummary;
+}
+
+export interface CreateLeaseRequest {
+  unitId: ID;
+  tenantId: ID;
+  status?: LeaseStatus;
+  startDate: ISODateString;
+  endDate: ISODateString;
+  rentCents: number;
+  depositCents?: number;
+  notes?: string;
+}
+
+export type UpdateLeaseRequest = Partial<Omit<CreateLeaseRequest, 'unitId'>>;
+
+/** Choices for the lease create/edit form, scoped to the caller's organization. */
+export interface LeaseFormOptions {
+  units: LeaseUnitSummary[];
+  tenants: LeaseTenantSummary[];
+}
+
+export type { InvitableRole, LeaseStatus, PropertyType, SubscriptionTier, UnitStatus, UserRole };

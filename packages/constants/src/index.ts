@@ -92,6 +92,14 @@ export const LEASE_STATUSES = [
 ] as const;
 export type LeaseStatus = (typeof LEASE_STATUSES)[number];
 
+export const LEASE_STATUS_LABELS: Record<LeaseStatus, string> = {
+  DRAFT: 'Draft',
+  PENDING_SIGNATURE: 'Pending signature',
+  ACTIVE: 'Active',
+  EXPIRED: 'Expired',
+  TERMINATED: 'Terminated',
+};
+
 export const PAYMENT_STATUSES = ['PENDING', 'PAID', 'LATE', 'FAILED', 'REFUNDED'] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 

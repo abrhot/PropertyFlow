@@ -14,11 +14,16 @@ import type {
   AuthUser,
   CreateInvitationRequest,
   CreateInvitationResponse,
+  CreateLeaseRequest,
   CreatePropertyRequest,
   CreateUnitRequest,
   ForgotPasswordRequest,
   InvitationPreview,
   InvitationTokenRequest,
+  Lease,
+  LeaseFormOptions,
+  LeaseListResponse,
+  LeaseStatus,
   LoginRequest,
   OrganizationInvitationSummary,
   Property,
@@ -29,6 +34,7 @@ import type {
   RegisterRequest,
   ResetPasswordRequest,
   Unit,
+  UpdateLeaseRequest,
   UpdatePropertyRequest,
   UpdateUnitRequest,
 } from '@propertyflow/types';
@@ -37,6 +43,13 @@ export interface ListPropertiesParams {
   search?: string;
   type?: PropertyType;
   includeInactive?: boolean;
+}
+
+export interface ListLeasesParams {
+  status?: LeaseStatus;
+  unitId?: string;
+  tenantId?: string;
+  search?: string;
 }
 
 export class ApiError extends Error {
@@ -259,6 +272,41 @@ export class ApiClient {
       `/properties/${encodeURIComponent(propertyId)}/units/${encodeURIComponent(unitId)}`,
       { method: 'DELETE' },
     );
+  }
+
+  // ---- Leases ----
+
+  listLeases(params: ListLeasesParams = {}): Promise<LeaseListResponse> {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.unitId) query.set('unitId', params.unitId);
+    if (params.tenantId) query.set('tenantId', params.tenantId);
+    if (params.search) query.set('search', params.search);
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return this.request(`/leases${suffix}`, { method: 'GET' });
+  }
+
+  listLeaseFormOptions(): Promise<LeaseFormOptions> {
+    return this.request('/leases/options', { method: 'GET' });
+  }
+
+  getLease(id: string): Promise<Lease> {
+    return this.request(`/leases/${encodeURIComponent(id)}`, { method: 'GET' });
+  }
+
+  createLease(input: CreateLeaseRequest): Promise<Lease> {
+    return this.request('/leases', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  updateLease(id: string, input: UpdateLeaseRequest): Promise<Lease> {
+    return this.request(`/leases/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  deleteLease(id: string): Promise<{ message: string }> {
+    return this.request(`/leases/${encodeURIComponent(id)}`, { method: 'DELETE' });
   }
 }
 

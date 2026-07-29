@@ -59,6 +59,24 @@ the web form converts at the edge. Units are only addressable through their
 parent property and inherit its permissions. A property outside the caller's
 scope returns `404` rather than `403`, so ids cannot be probed for existence.
 
+## Lease endpoints
+
+| Method | Path              | Auth              | Body / Notes                                                              |
+| ------ | ----------------- | ----------------- | ------------------------------------------------------------------------ |
+| GET    | `/leases`         | `read Lease`      | Query: `status`, `unitId`, `tenantId`, `search`. Returns `{ leases, summary }`. |
+| GET    | `/leases/options` | `create Lease`    | Units and active tenants in the caller's organization, for the form.     |
+| GET    | `/leases/:id`     | `read Lease`      | Returns the lease with tenant and unit/property summaries.               |
+| POST   | `/leases`         | `create Lease`    | `{ unitId, tenantId, status?, startDate, endDate, rentCents, depositCents?, notes? }`. |
+| PATCH  | `/leases/:id`     | `update Lease`    | Partial update; `unitId` is immutable.                                    |
+| DELETE | `/leases/:id`     | `delete Lease`    | Only roles with `delete Lease` (org admin, property manager).            |
+
+Rent and deposit are in **cents**; dates are ISO strings. Business rules: a unit
+may hold only one `ACTIVE` lease at a time; activating a lease marks its unit
+`OCCUPIED` and ending one (`EXPIRED`/`TERMINATED`) frees it back to `VACANT`;
+the tenant must be an active `TENANT` in the same organization. Owner scoping
+works through the unit's property owner. A lease outside the caller's scope
+returns `404` rather than `403`.
+
 ## Token model
 
 - **Access token**: short-lived JWT (default 15m), sent as `Authorization: Bearer`.
@@ -79,5 +97,5 @@ scope returns `404` rather than `403`, so ids cannot be probed for existence.
 
 ## Planned modules
 
-Leases, Rent & payments (Stripe), Maintenance work orders,
-Accounting/reporting, Messaging, Notifications.
+Rent & payments (Stripe), Maintenance work orders, Accounting/reporting,
+Messaging, Notifications.

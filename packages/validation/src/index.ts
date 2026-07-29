@@ -3,7 +3,12 @@
  * web/mobile apps (form validation), so rules stay in sync (single source of truth).
  */
 
-import { INVITABLE_ROLES, PROPERTY_TYPES, UNIT_STATUSES } from '@propertyflow/constants';
+import {
+  INVITABLE_ROLES,
+  LEASE_STATUSES,
+  PROPERTY_TYPES,
+  UNIT_STATUSES,
+} from '@propertyflow/constants';
 import { z } from 'zod';
 
 /** Reused password policy. Adjust here to change it everywhere. */
@@ -147,4 +152,94 @@ export type UnitFormInput = z.infer<typeof unitFormSchema>;
 export function unitFormToRequest(input: UnitFormInput): CreateUnitInput {
   const { marketRent, ...rest } = input;
   return { ...rest, marketRentCents: Math.round(marketRent * 100) };
+}
+
+// ---- Leases ----
+
+export const createLeaseSchema = z
+  .object({
+    unitId: z.string().uuid('Select a unit'),
+    tenantId: z.string().uuid('Select a tenant'),
+    status: z.enum(LEASE_STATUSES).default('DRAFT'),
+    startDate: z.coerce.date({ invalid_type_error: 'Enter a valid start date' }),
+    endDate: z.coerce.date({ invalid_type_error: 'Enter a valid end date' }),
+    rentCents: z.coerce.number().int().min(0).max(100_000_000),
+    depositCents: z.coerce.number().int().min(0).max(100_000_000).default(0),
+    notes: optionalField(z.string().trim().max(2000)),
+  })
+  .refine((value) => value.endDate > value.startDate, {
+    message: 'End date must be after the start date',
+    path: ['endDate'],
+  });
+export type CreateLeaseInput = z.infer<typeof createLeaseSchema>;
+
+// `unitId` is fixed once a lease exists; everything else may change.
+const leaseUpdateFields = z.object({
+  tenantId: z.string().uuid('Select a tenant'),
+  status: z.enum(LEASE_STATUSES),
+  startDate: z.coerce.date({ invalid_type_error: 'Enter a valid start date' }),
+  endDate: z.coerce.date({ invalid_type_error: 'Enter a valid end date' }),
+  rentCents: z.coerce.number().int().min(0).max(100_000_000),
+  depositCents: z.coerce.number().int().min(0).max(100_000_000),
+  notes: optionalField(z.string().trim().max(2000)),
+});
+
+export const updateLeaseSchema = leaseUpdateFields
+  .partial()
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
+    message: 'Provide at least one field to update',
+  })
+  .refine((value) => !value.startDate || !value.endDate || value.endDate > value.startDate, {
+    message: 'End date must be after the start date',
+    path: ['endDate'],
+  });
+export type UpdateLeaseInput = z.infer<typeof updateLeaseSchema>;
+
+export const listLeasesQuerySchema = z.object({
+  status: z.enum(LEASE_STATUSES).optional(),
+  unitId: z.string().uuid().optional(),
+  tenantId: z.string().uuid().optional(),
+  search: z.string().trim().max(120).optional(),
+});
+export type ListLeasesQuery = z.infer<typeof listLeasesQuerySchema>;
+
+/**
+ * Form-facing variant: people type whole-currency rent and pick dates as
+ * `yyyy-mm-dd` strings, so the dollar/cent and date conversions live here.
+ */
+export const leaseFormSchema = z
+  .object({
+    unitId: z.string().uuid('Select a unit'),
+    tenantId: z.string().uuid('Select a tenant'),
+    status: z.enum(LEASE_STATUSES),
+    startDate: z.string().min(1, 'Start date is required'),
+    endDate: z.string().min(1, 'End date is required'),
+    rent: z.coerce.number().min(0).max(1_000_000),
+    deposit: z.coerce.number().min(0).max(1_000_000),
+    notes: z.string().trim().max(2000).optional(),
+  })
+  .refine((value) => new Date(value.endDate) > new Date(value.startDate), {
+    message: 'End date must be after the start date',
+    path: ['endDate'],
+  });
+export type LeaseFormInput = z.infer<typeof leaseFormSchema>;
+
+/** Produces the wire shape (ISO dates, cents) the API client sends as JSON. */
+export function leaseFormToCreateRequest(input: LeaseFormInput) {
+  return {
+    unitId: input.unitId,
+    tenantId: input.tenantId,
+    status: input.status,
+    startDate: new Date(input.startDate).toISOString(),
+    endDate: new Date(input.endDate).toISOString(),
+    rentCents: Math.round(input.rent * 100),
+    depositCents: Math.round(input.deposit * 100),
+    notes: input.notes ? input.notes : undefined,
+  };
+}
+
+/** Update variant of {@link leaseFormToCreateRequest} (no immutable unitId). */
+export function leaseFormToUpdateRequest(input: LeaseFormInput) {
+  const { unitId: _unitId, ...request } = leaseFormToCreateRequest(input);
+  return request;
 }
