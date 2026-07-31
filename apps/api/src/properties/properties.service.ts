@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { defineAbilityFor, type AppAbility } from '@propertyflow/auth';
+import type { AppAbility } from '@propertyflow/auth';
 import { Prisma, type PrismaClient } from '@propertyflow/database';
 import type {
   Property,
@@ -24,6 +24,7 @@ import type {
   UpdatePropertyInput,
   UpdateUnitInput,
 } from '@propertyflow/validation';
+import { AbilityService } from '../authorization/ability.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   assertCanAccessProperty,
@@ -71,14 +72,17 @@ type UnitRecord = Prisma.UnitGetPayload<{ select: typeof UNIT_SELECT }>;
 
 @Injectable()
 export class PropertiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly abilities: AbilityService,
+  ) {}
 
   private get db(): PrismaClient {
     return this.prisma.client;
   }
 
   async list(user: RequestUser, query: ListPropertiesQuery): Promise<PropertyListResponse> {
-    const ability = defineAbilityFor(user);
+    const ability = this.abilities.abilityForUser(user);
     const scope = propertyScopeFor(ability, 'read');
     if (!scope) return { properties: [], summary: emptySummary() };
 
@@ -122,7 +126,7 @@ export class PropertiesService {
   }
 
   async create(user: RequestUser, input: CreatePropertyInput): Promise<Property> {
-    const ability = defineAbilityFor(user);
+    const ability = this.abilities.abilityForUser(user);
     const organizationId = requireOrganization(user);
     const ownerId = await this.resolveOwner(organizationId, input.ownerId);
 
@@ -258,7 +262,7 @@ export class PropertiesService {
     user: RequestUser,
     id: string,
   ): Promise<{ ability: AppAbility; record: PropertyRecord }> {
-    const ability = defineAbilityFor(user);
+    const ability = this.abilities.abilityForUser(user);
     const scope = propertyScopeFor(ability, 'read');
     if (!scope) throw new NotFoundException('Property not found');
 

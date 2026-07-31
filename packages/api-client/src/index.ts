@@ -9,21 +9,53 @@
  */
 
 import type {
+  AccountProfile,
   AcceptInvitationRequest,
+  ApplicationFormOptions,
+  ApplicationListResponse,
   AuthResponse,
-  AuthUser,
+  BillingOverviewResponse,
+  NotificationPreferences,
+  OrganizationProfile,
+  SettingsResponse,
+  UpdateNotificationPreferencesRequest,
+  UpdateOrganizationProfileRequest,
+  UpdateProfileRequest,
+  Conversation,
+  ConversationDetail,
+  ConversationListResponse,
+  DashboardSummaryResponse,
+  CreateConversationRequest,
   CreateInvitationRequest,
   CreateInvitationResponse,
+  CreateApplicationRequest,
   CreateLeaseRequest,
+  CreateMaintenanceRequestRequest,
+  CreateMessageRequest,
+  CreatePaymentRequest,
   CreatePropertyRequest,
   CreateUnitRequest,
   ForgotPasswordRequest,
+  Message,
+  MessagingOptions,
+  OrganizationListResponse,
+  PlatformOrganization,
+  UpdateOrganizationRequest,
   InvitationPreview,
   InvitationTokenRequest,
   Lease,
   LeaseFormOptions,
   LeaseListResponse,
   LeaseStatus,
+  MaintenanceFormOptions,
+  MaintenancePriority,
+  MaintenanceRequest,
+  MaintenanceRequestListResponse,
+  MaintenanceStatus,
+  Payment,
+  PaymentFormOptions,
+  PaymentListResponse,
+  PaymentStatus,
   LoginRequest,
   OrganizationInvitationSummary,
   Property,
@@ -32,11 +64,23 @@ import type {
   PropertyOwnerSummary,
   PropertyType,
   RegisterRequest,
+  ReportDashboardResponse,
+  RentalApplication,
   ResetPasswordRequest,
+  SessionResponse,
+  TenantDirectoryResponse,
   Unit,
   UpdateLeaseRequest,
+  UpdateApplicationRequest,
+  UpdateMaintenanceRequestRequest,
+  UpdatePaymentRequest,
   UpdatePropertyRequest,
   UpdateUnitRequest,
+  UpdateWorkOrderRequest,
+  WorkOrder,
+  WorkOrderListResponse,
+  WorkOrderStatus,
+  AssignWorkOrderRequest,
 } from '@propertyflow/types';
 
 export interface ListPropertiesParams {
@@ -49,6 +93,34 @@ export interface ListLeasesParams {
   status?: LeaseStatus;
   unitId?: string;
   tenantId?: string;
+  search?: string;
+}
+
+export interface ListPaymentsParams {
+  status?: PaymentStatus;
+  leaseId?: string;
+  tenantId?: string;
+  search?: string;
+}
+
+export interface ListMaintenanceParams {
+  status?: MaintenanceStatus;
+  priority?: MaintenancePriority;
+  search?: string;
+}
+
+export interface ListWorkOrdersParams {
+  status?: WorkOrderStatus;
+  search?: string;
+}
+
+export interface ListTenantsParams {
+  search?: string;
+  includeInactive?: boolean;
+}
+
+export interface ListApplicationsParams {
+  status?: import('@propertyflow/types').ApplicationStatus;
   search?: string;
 }
 
@@ -168,8 +240,8 @@ export class ApiClient {
     }
   }
 
-  me(): Promise<AuthUser> {
-    return this.request<AuthUser>('/auth/me', { method: 'GET' });
+  me(): Promise<SessionResponse> {
+    return this.request<SessionResponse>('/auth/me', { method: 'GET' });
   }
 
   forgotPassword(input: ForgotPasswordRequest): Promise<{ message: string; devToken?: string }> {
@@ -307,6 +379,200 @@ export class ApiClient {
 
   deleteLease(id: string): Promise<{ message: string }> {
     return this.request(`/leases/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  }
+
+  // ---- Payments ----
+
+  listPayments(params: ListPaymentsParams = {}): Promise<PaymentListResponse> {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.leaseId) query.set('leaseId', params.leaseId);
+    if (params.tenantId) query.set('tenantId', params.tenantId);
+    if (params.search) query.set('search', params.search);
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return this.request(`/payments${suffix}`, { method: 'GET' });
+  }
+
+  listPaymentFormOptions(): Promise<PaymentFormOptions> {
+    return this.request('/payments/options', { method: 'GET' });
+  }
+
+  createPayment(input: CreatePaymentRequest): Promise<Payment> {
+    return this.request('/payments', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  updatePayment(id: string, input: UpdatePaymentRequest): Promise<Payment> {
+    return this.request(`/payments/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  payPayment(id: string): Promise<Payment> {
+    return this.request(`/payments/${encodeURIComponent(id)}/pay`, { method: 'POST' });
+  }
+
+  // ---- Maintenance ----
+
+  listMaintenanceRequests(params: ListMaintenanceParams = {}): Promise<MaintenanceRequestListResponse> {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.priority) query.set('priority', params.priority);
+    if (params.search) query.set('search', params.search);
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return this.request(`/maintenance-requests${suffix}`, { method: 'GET' });
+  }
+
+  listMaintenanceOptions(): Promise<MaintenanceFormOptions> {
+    return this.request('/maintenance-requests/options', { method: 'GET' });
+  }
+
+  createMaintenanceRequest(input: CreateMaintenanceRequestRequest): Promise<MaintenanceRequest> {
+    return this.request('/maintenance-requests', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  updateMaintenanceRequest(
+    id: string,
+    input: UpdateMaintenanceRequestRequest,
+  ): Promise<MaintenanceRequest> {
+    return this.request(`/maintenance-requests/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  listWorkOrders(params: ListWorkOrdersParams = {}): Promise<WorkOrderListResponse> {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.search) query.set('search', params.search);
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return this.request(`/work-orders${suffix}`, { method: 'GET' });
+  }
+
+  assignWorkOrder(input: AssignWorkOrderRequest): Promise<WorkOrder> {
+    return this.request('/work-orders', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  updateWorkOrder(id: string, input: UpdateWorkOrderRequest): Promise<WorkOrder> {
+    return this.request(`/work-orders/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  listTenants(params: ListTenantsParams = {}): Promise<TenantDirectoryResponse> {
+    const query = new URLSearchParams();
+    if (params.search) query.set('search', params.search);
+    if (params.includeInactive) query.set('includeInactive', 'true');
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return this.request(`/tenants${suffix}`, { method: 'GET' });
+  }
+
+  listApplications(params: ListApplicationsParams = {}): Promise<ApplicationListResponse> {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.search) query.set('search', params.search);
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return this.request(`/applications${suffix}`, { method: 'GET' });
+  }
+
+  listApplicationOptions(): Promise<ApplicationFormOptions> {
+    return this.request('/applications/options', { method: 'GET' });
+  }
+
+  createApplication(input: CreateApplicationRequest): Promise<RentalApplication> {
+    return this.request('/applications', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  updateApplication(id: string, input: UpdateApplicationRequest): Promise<RentalApplication> {
+    return this.request(`/applications/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(input) });
+  }
+
+  getReportDashboard(): Promise<ReportDashboardResponse> {
+    return this.request('/reports/dashboard', { method: 'GET' });
+  }
+
+  getDashboardSummary(): Promise<DashboardSummaryResponse> {
+    return this.request('/dashboard/summary', { method: 'GET' });
+  }
+
+  // ---- Messaging ----
+
+  listConversations(params: { search?: string } = {}): Promise<ConversationListResponse> {
+    const query = new URLSearchParams();
+    if (params.search) query.set('search', params.search);
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return this.request(`/conversations${suffix}`, { method: 'GET' });
+  }
+
+  listMessagingOptions(): Promise<MessagingOptions> {
+    return this.request('/conversations/options', { method: 'GET' });
+  }
+
+  getConversation(id: string): Promise<ConversationDetail> {
+    return this.request(`/conversations/${encodeURIComponent(id)}`, { method: 'GET' });
+  }
+
+  createConversation(input: CreateConversationRequest): Promise<ConversationDetail> {
+    return this.request('/conversations', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  sendMessage(conversationId: string, input: CreateMessageRequest): Promise<Message> {
+    return this.request(`/conversations/${encodeURIComponent(conversationId)}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  // ---- Platform administration ----
+
+  listOrganizations(params: { search?: string } = {}): Promise<OrganizationListResponse> {
+    const query = new URLSearchParams();
+    if (params.search) query.set('search', params.search);
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return this.request(`/organizations${suffix}`, { method: 'GET' });
+  }
+
+  updateOrganization(id: string, input: UpdateOrganizationRequest): Promise<PlatformOrganization> {
+    return this.request(`/organizations/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  getBillingOverview(): Promise<BillingOverviewResponse> {
+    return this.request('/billing/overview', { method: 'GET' });
+  }
+
+  // ---- Settings ----
+
+  getSettings(): Promise<SettingsResponse> {
+    return this.request('/settings', { method: 'GET' });
+  }
+
+  updateOrganizationProfile(
+    input: UpdateOrganizationProfileRequest,
+  ): Promise<OrganizationProfile> {
+    return this.request('/settings/organization', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  updateNotificationPreferences(
+    input: UpdateNotificationPreferencesRequest,
+  ): Promise<NotificationPreferences> {
+    return this.request('/settings/notifications', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  updateProfile(input: UpdateProfileRequest): Promise<AccountProfile> {
+    return this.request('/settings/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
   }
 }
 

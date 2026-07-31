@@ -119,7 +119,7 @@ function PropertiesContent() {
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight">Portfolio</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">Portfolio</h2>
             <p className="max-w-2xl text-muted-foreground">
               Every building you have access to, with live occupancy and rent roll.
             </p>
@@ -281,14 +281,16 @@ function SummaryCard({
   icon: typeof Building2;
 }) {
   return (
-    <Card>
+    <Card className="transition-shadow hover:shadow-elevated">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardDescription>{label}</CardDescription>
-          <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Icon className="h-4 w-4" aria-hidden="true" />
+          </span>
         </div>
-        <CardTitle className="text-2xl">
-          {value ?? <Skeleton className="h-7 w-20" />}
+        <CardTitle className="text-3xl">
+          {value ?? <Skeleton className="h-8 w-20" />}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -317,7 +319,7 @@ function PropertyCard({
   const canDelete = ability.can('delete', subject);
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 space-y-1">

@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { defineAbilityFor, type AppAbility } from '@propertyflow/auth';
+import type { AppAbility } from '@propertyflow/auth';
 import { Prisma, type PrismaClient } from '@propertyflow/database';
 import type {
   Lease,
@@ -19,6 +19,7 @@ import type {
   ListLeasesQuery,
   UpdateLeaseInput,
 } from '@propertyflow/validation';
+import { AbilityService } from '../authorization/ability.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   assertCanAccessLease,
@@ -54,14 +55,17 @@ type LeaseRecord = Prisma.LeaseGetPayload<{ select: typeof LEASE_SELECT }>;
 
 @Injectable()
 export class LeasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly abilities: AbilityService,
+  ) {}
 
   private get db(): PrismaClient {
     return this.prisma.client;
   }
 
   async list(user: RequestUser, query: ListLeasesQuery): Promise<LeaseListResponse> {
-    const ability = defineAbilityFor(user);
+    const ability = this.abilities.abilityForUser(user);
     const scope = leaseScopeFor(ability, 'read');
     if (!scope) return { leases: [], summary: emptySummary() };
 
@@ -129,7 +133,7 @@ export class LeasesService {
   }
 
   async create(user: RequestUser, input: CreateLeaseInput): Promise<Lease> {
-    const ability = defineAbilityFor(user);
+    const ability = this.abilities.abilityForUser(user);
     const organizationId = requireOrganization(user);
 
     const unit = await this.loadUnit(organizationId, input.unitId);
@@ -230,7 +234,7 @@ export class LeasesService {
     user: RequestUser,
     id: string,
   ): Promise<{ ability: AppAbility; record: LeaseRecord }> {
-    const ability = defineAbilityFor(user);
+    const ability = this.abilities.abilityForUser(user);
     const scope = leaseScopeFor(ability, 'read');
     if (!scope) throw new NotFoundException('Lease not found');
 

@@ -45,6 +45,24 @@ export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 export const SUBSCRIPTION_TIERS = ['TRIAL', 'STARTER', 'GROWTH', 'ENTERPRISE'] as const;
 export type SubscriptionTier = (typeof SUBSCRIPTION_TIERS)[number];
 
+export const SUBSCRIPTION_TIER_LABELS: Record<SubscriptionTier, string> = {
+  TRIAL: 'Trial',
+  STARTER: 'Starter',
+  GROWTH: 'Growth',
+  ENTERPRISE: 'Enterprise',
+};
+
+/**
+ * Monthly list price per subscription tier, in minor currency units (cents).
+ * Used to estimate platform MRR in the billing overview. TRIAL is $0.
+ */
+export const SUBSCRIPTION_TIER_PRICE_CENTS: Record<SubscriptionTier, number> = {
+  TRIAL: 0,
+  STARTER: 9900,
+  GROWTH: 29900,
+  ENTERPRISE: 99900,
+};
+
 export const PROPERTY_TYPES = [
   'SINGLE_FAMILY',
   'MULTI_FAMILY',
@@ -83,6 +101,45 @@ export const MAINTENANCE_STATUSES = [
 ] as const;
 export type MaintenanceStatus = (typeof MAINTENANCE_STATUSES)[number];
 
+export const MAINTENANCE_STATUS_LABELS: Record<MaintenanceStatus, string> = {
+  SUBMITTED: 'Submitted',
+  ASSIGNED: 'Assigned',
+  IN_PROGRESS: 'In progress',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+};
+
+export const MAINTENANCE_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const;
+export type MaintenancePriority = (typeof MAINTENANCE_PRIORITIES)[number];
+
+export const MAINTENANCE_PRIORITY_LABELS: Record<MaintenancePriority, string> = {
+  LOW: 'Low',
+  NORMAL: 'Normal',
+  HIGH: 'High',
+  URGENT: 'Urgent',
+};
+
+export const WORK_ORDER_STATUSES = ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
+export type WorkOrderStatus = (typeof WORK_ORDER_STATUSES)[number];
+
+export const WORK_ORDER_STATUS_LABELS: Record<WorkOrderStatus, string> = {
+  ASSIGNED: 'Assigned',
+  IN_PROGRESS: 'In progress',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+};
+
+export const APPLICATION_STATUSES = ['NEW', 'SCREENING', 'APPROVED', 'DENIED', 'WITHDRAWN'] as const;
+export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+
+export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  NEW: 'New',
+  SCREENING: 'Screening',
+  APPROVED: 'Approved',
+  DENIED: 'Denied',
+  WITHDRAWN: 'Withdrawn',
+};
+
 export const LEASE_STATUSES = [
   'DRAFT',
   'PENDING_SIGNATURE',
@@ -102,6 +159,14 @@ export const LEASE_STATUS_LABELS: Record<LeaseStatus, string> = {
 
 export const PAYMENT_STATUSES = ['PENDING', 'PAID', 'LATE', 'FAILED', 'REFUNDED'] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  PENDING: 'Pending',
+  PAID: 'Paid',
+  LATE: 'Late',
+  FAILED: 'Failed',
+  REFUNDED: 'Refunded',
+};
 
 /** Cookie name used for the httpOnly refresh token. */
 export const REFRESH_TOKEN_COOKIE = 'pf_refresh_token';
@@ -161,9 +226,9 @@ export const APP_SECTIONS = [
 export type AppSection = (typeof APP_SECTIONS)[number];
 
 /**
- * @deprecated Use `defineAbilityFor` and `accessibleSectionsFor` from
- * `@propertyflow/auth`. Retained temporarily for consumers migrating from the
- * original role-list navigation.
+ * @deprecated Build an ability with `buildAbility` and derive navigation with
+ * `accessibleSectionsFor` from `@propertyflow/auth`. Retained temporarily for
+ * consumers migrating from the original role-list navigation.
  */
 export const ROLE_SECTIONS: Record<UserRole, AppSection[]> = {
   SUPER_ADMIN: ['dashboard', 'organizations', 'billing', 'reports', 'settings'],
@@ -174,10 +239,19 @@ export const ROLE_SECTIONS: Record<UserRole, AppSection[]> = {
     'payments',
     'maintenance',
     'tenants',
+    'messages',
     'reports',
     'settings',
   ],
-  PROPERTY_MANAGER: ['dashboard', 'properties', 'leases', 'applications', 'maintenance', 'reports'],
+  PROPERTY_MANAGER: [
+    'dashboard',
+    'properties',
+    'leases',
+    'applications',
+    'maintenance',
+    'messages',
+    'reports',
+  ],
   LEASING_AGENT: ['dashboard', 'applications', 'leases', 'tenants'],
   ACCOUNTANT: ['dashboard', 'payments', 'reports'],
   MAINTENANCE: ['dashboard', 'work_orders'],

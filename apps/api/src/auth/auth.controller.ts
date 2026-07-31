@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common';
-import type { AuthResponse, AuthUser, RequestUser } from '@propertyflow/types';
+import type { AuthResponse, RequestUser, SessionResponse } from '@propertyflow/types';
 import {
   forgotPasswordSchema,
   loginSchema,
@@ -15,6 +15,7 @@ import { CheckAbility } from '../common/decorators/check-ability.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { AbilityService } from '../authorization/ability.service';
 import { AuthService } from './auth.service';
 import { SessionCookieService } from './session-cookie.service';
 
@@ -23,6 +24,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly sessionCookies: SessionCookieService,
+    private readonly abilities: AbilityService,
   ) {}
 
   @Public()
@@ -74,8 +76,9 @@ export class AuthController {
 
   @Get('me')
   @CheckAbility({ action: 'read', subject: 'User' })
-  me(@CurrentUser() user: RequestUser): Promise<AuthUser> {
-    return this.authService.me(user.id);
+  async me(@CurrentUser() user: RequestUser): Promise<SessionResponse> {
+    const authUser = await this.authService.me(user.id);
+    return { user: authUser, abilityRules: this.abilities.rulesForUser(authUser) };
   }
 
   @Public()

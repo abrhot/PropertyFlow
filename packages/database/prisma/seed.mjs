@@ -145,6 +145,201 @@ async function seedLeases(organizationId, usersByEmail) {
   return 1;
 }
 
+/** Adds a small rent ledger for the tenant portal and accounting workspace. */
+async function seedPayments(organizationId, usersByEmail) {
+  const tenant = usersByEmail.get('tenant@demo.test');
+  if (!tenant) return 0;
+
+  const lease = await prisma.lease.findFirst({
+    where: { organizationId, tenantId: tenant.id },
+    select: {
+      id: true,
+      rentCents: true,
+      unit: { select: { property: { select: { ownerId: true } } } },
+    },
+  });
+  if (!lease) return 0;
+
+  const existing = await prisma.payment.count({ where: { leaseId: lease.id } });
+  if (existing) return 0;
+
+  const now = new Date();
+  const payments = [];
+  for (let offset = -3; offset <= 1; offset += 1) {
+    const dueDate = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const isPast = offset <= 0;
+    payments.push({
+      organizationId,
+      leaseId: lease.id,
+      tenantId: tenant.id,
+      ownerId: lease.unit.property.ownerId,
+      status: isPast ? 'PAID' : 'PENDING',
+      amountCents: lease.rentCents,
+      dueDate,
+      paidAt: isPast ? new Date(dueDate.getFullYear(), dueDate.getMonth(), 1) : null,
+      description: `Rent · ${dueDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })}`,
+      method: isPast ? 'ACH' : null,
+      reference: isPast ? `DEMO-${dueDate.getFullYear()}-${dueDate.getMonth() + 1}` : null,
+    });
+  }
+
+  await prisma.payment.createMany({ data: payments });
+  return payments.length;
+}
+
+async function seedMaintenance(organizationId, usersByEmail) {
+  const tenant = usersByEmail.get('tenant@demo.test');
+  const technician = usersByEmail.get('maintenance@demo.test');
+  if (!tenant || !technician) return 0;
+  const lease = await prisma.lease.findFirst({
+    where: { organizationId, tenantId: tenant.id },
+    select: {
+      id: true,
+      unitId: true,
+      unit: { select: { property: { select: { ownerId: true } } } },
+    },
+  });
+  if (!lease) return 0;
+  if (await prisma.maintenanceRequest.count({ where: { organizationId } })) return 0;
+
+  await prisma.maintenanceRequest.create({
+    data: {
+      organizationId,
+      leaseId: lease.id,
+      unitId: lease.unitId,
+      tenantId: tenant.id,
+      ownerId: lease.unit.property.ownerId,
+      title: 'Kitchen faucet is leaking',
+      description: 'The kitchen faucet has a steady drip and water is collecting below the sink.',
+      priority: 'HIGH',
+    },
+  });
+  const assigned = await prisma.maintenanceRequest.create({
+    data: {
+      organizationId,
+      leaseId: lease.id,
+      unitId: lease.unitId,
+      tenantId: tenant.id,
+      ownerId: lease.unit.property.ownerId,
+      assigneeId: technician.id,
+      title: 'HVAC is not cooling',
+      description: 'The system is running but the apartment remains above the thermostat setting.',
+      priority: 'URGENT',
+      status: 'IN_PROGRESS',
+    },
+  });
+  await prisma.workOrder.create({
+    data: {
+      organizationId,
+      maintenanceRequestId: assigned.id,
+      assigneeId: technician.id,
+      tenantId: tenant.id,
+      ownerId: lease.unit.property.ownerId,
+      status: 'IN_PROGRESS',
+      startedAt: new Date(),
+      dueDate: new Date(),
+      referenceCode: 'WO-DEMO-01',
+      notes: 'Inspect condenser and thermostat.',
+    },
+  });
+  return 2;
+}
+
+async function seedConversations(organizationId, usersByEmail) {
+  const tenant = usersByEmail.get('tenant@demo.test');
+  const admin = usersByEmail.get('orgadmin@demo.test');
+  if (!tenant || !admin) return 0;
+  if (await prisma.conversation.count({ where: { organizationId } })) return 0;
+
+  const base = new Date();
+  const conversation = await prisma.conversation.create({
+    data: {
+      organizationId,
+      subject: 'Lease renewal options',
+      participantIds: [tenant.id],
+      lastMessageAt: base,
+      messages: {
+        create: [
+          {
+            organizationId,
+            senderId: tenant.id,
+            body: 'Hi! My lease ends soon — what are my renewal options?',
+            createdAt: new Date(base.getTime() - 1000 * 60 * 60),
+          },
+          {
+            organizationId,
+            senderId: admin.id,
+            body: 'Happy to help. We can offer a 12-month renewal at the current rate. Want me to send the paperwork?',
+            createdAt: base,
+          },
+        ],
+      },
+    },
+  });
+  return conversation ? 1 : 0;
+}
+
+/**
+ * Extra management companies so the SUPER_ADMIN organizations and billing views
+ * have a realistic, multi-tenant portfolio (different plans and activity levels).
+ */
+const PLATFORM_ORGS = [
+  { name: 'Harbor Property Group', slug: 'harbor-property-group', subscriptionTier: 'ENTERPRISE', isActive: true },
+  { name: 'Northstar Living', slug: 'northstar-living', subscriptionTier: 'STARTER', isActive: true },
+  { name: 'Cedar & Stone', slug: 'cedar-and-stone', subscriptionTier: 'TRIAL', isActive: true },
+  { name: 'Willow Residential', slug: 'willow-residential', subscriptionTier: 'GROWTH', isActive: false },
+];
+
+async function seedPlatformOrganizations(passwordHash) {
+  let created = 0;
+  for (const definition of PLATFORM_ORGS) {
+    const org = await prisma.organization.upsert({
+      where: { slug: definition.slug },
+      update: {},
+      create: definition,
+    });
+    // A single admin per org so the user counts are non-zero.
+    await prisma.user.upsert({
+      where: { email: `admin@${definition.slug}.test` },
+      update: {},
+      create: {
+        email: `admin@${definition.slug}.test`,
+        fullName: `${definition.name} Admin`,
+        role: 'ORG_ADMIN',
+        organizationId: org.id,
+        passwordHash,
+      },
+    });
+    created += 1;
+  }
+  return created;
+}
+
+async function seedApplications(organizationId) {
+  if (await prisma.application.count({ where: { organizationId } })) return 0;
+  const units = await prisma.unit.findMany({
+    where: { property: { organizationId }, status: 'VACANT' },
+    take: 2,
+    select: { id: true },
+  });
+  if (!units.length) return 0;
+  const rows = [
+    ['Olivia Martin', 'olivia.applicant@example.com', 'NEW'],
+    ['Noah Williams', 'noah.applicant@example.com', 'SCREENING'],
+    ['Emma Davis', 'emma.applicant@example.com', 'APPROVED'],
+  ].map(([applicantName, applicantEmail, status], index) => ({
+    organizationId,
+    unitId: units[index % units.length].id,
+    applicantName,
+    applicantEmail,
+    status,
+    monthlyIncomeCents: 650000 + index * 75000,
+    desiredMoveIn: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
+  }));
+  await prisma.application.createMany({ data: rows });
+  return rows.length;
+}
+
 async function main() {
   const passwordHash = await bcrypt.hash(PASSWORD, 12);
 
@@ -172,6 +367,11 @@ async function main() {
 
   const createdProperties = await seedPortfolio(org.id, usersByEmail);
   const createdLeases = await seedLeases(org.id, usersByEmail);
+  const createdPayments = await seedPayments(org.id, usersByEmail);
+  const createdMaintenance = await seedMaintenance(org.id, usersByEmail);
+  const createdApplications = await seedApplications(org.id);
+  const createdConversations = await seedConversations(org.id, usersByEmail);
+  const createdPlatformOrgs = await seedPlatformOrganizations(passwordHash);
 
   console.log(`\nSeeded organization "${org.name}" and ${USERS.length} users.`);
   console.log(
@@ -179,7 +379,24 @@ async function main() {
       ? `Added ${createdProperties} propert${createdProperties === 1 ? 'y' : 'ies'}.`
       : 'Portfolio already present, left unchanged.',
   );
+  console.log(
+    createdApplications ? `Added ${createdApplications} applications.` : 'Applications already present.',
+  );
   console.log(createdLeases ? `Added ${createdLeases} lease.` : 'Leases already present.');
+  console.log(createdPayments ? `Added ${createdPayments} payments.` : 'Payments already present.');
+  console.log(
+    createdMaintenance
+      ? `Added ${createdMaintenance} maintenance requests.`
+      : 'Maintenance requests already present.',
+  );
+  console.log(
+    createdConversations ? `Added ${createdConversations} conversation.` : 'Conversations already present.',
+  );
+  console.log(
+    createdPlatformOrgs
+      ? `Ensured ${createdPlatformOrgs} additional platform organizations.`
+      : 'Platform organizations already present.',
+  );
   console.log(`Password for every seeded user: ${PASSWORD}\n`);
   for (const [email, , role] of USERS) console.log(`  ${role.padEnd(18)} ${email}`);
   console.log('');

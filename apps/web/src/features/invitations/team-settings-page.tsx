@@ -35,9 +35,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { RequireAbility } from '@/features/auth/require-ability';
-import { RequireAuth } from '@/features/auth/require-auth';
-import { DashboardShell } from '@/features/dashboard/dashboard-shell';
 import { api } from '@/lib/api';
 
 const INVITATIONS_QUERY_KEY = ['organization', 'invitations'] as const;
@@ -48,7 +45,11 @@ function statusVariant(status: InvitationStatus): 'default' | 'secondary' | 'out
   return 'outline';
 }
 
-function TeamSettingsContent() {
+/**
+ * Team invitation management, rendered as a section inside the Settings page.
+ * Auth and the `manage Invitation` ability are enforced by the caller.
+ */
+export function TeamInvitationsSection() {
   const queryClient = useQueryClient();
   const [acceptUrl, setAcceptUrl] = useState<string | null>(null);
   const {
@@ -99,23 +100,22 @@ function TeamSettingsContent() {
   }
 
   return (
-    <DashboardShell title="Team & roles">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold tracking-tight">Invite your team</h2>
-            <Badge variant="outline" className="gap-1">
-              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-              Server-assigned roles
-            </Badge>
-          </div>
-          <p className="max-w-3xl text-muted-foreground">
-            Invite people by email and choose exactly what they can access. Roles are stored in the
-            invitation and enforced by CASL after acceptance.
-          </p>
+    <section className="space-y-4">
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold tracking-tight">Team &amp; roles</h3>
+          <Badge variant="outline" className="gap-1">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            Server-assigned roles
+          </Badge>
         </div>
+        <p className="max-w-3xl text-sm text-muted-foreground">
+          Invite people by email and choose exactly what they can access. Roles are stored in the
+          invitation and enforced by CASL after acceptance.
+        </p>
+      </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -294,8 +294,7 @@ function TeamSettingsContent() {
             ))}
           </CardContent>
         </Card>
-      </div>
-    </DashboardShell>
+    </section>
   );
 }
 
@@ -310,15 +309,5 @@ function RoleCard({ role }: { role: InvitableRole }) {
         {ROLE_DESCRIPTIONS[role]}
       </p>
     </div>
-  );
-}
-
-export function TeamSettingsPage() {
-  return (
-    <RequireAuth>
-      <RequireAbility action="manage" subject="Invitation">
-        <TeamSettingsContent />
-      </RequireAbility>
-    </RequireAuth>
   );
 }

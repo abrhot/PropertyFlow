@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@casl/ability": "^7.0.1",
-    "@propertyflow/constants": "workspace:*"
+    "@propertyflow/constants": "workspace:*",
+    "@propertyflow/types": "workspace:*"
   },
   "devDependencies": {
     "@propertyflow/config": "workspace:*",

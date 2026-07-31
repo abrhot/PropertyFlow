@@ -5,6 +5,27 @@ Authentication proves who the user is; CASL decides what that authenticated user
 may do. The API is always the security boundary. Client-side checks only improve
 the user experience.
 
+Permissions are **data, not code**. Every rule is a plain
+[`AbilityRule`](../packages/types/src/index.ts) (a CASL "RawRule": `action`,
+`subject`, `fields`, `conditions`, `inverted`, `reason`) stored in the
+`AbilityRule` database table. The API and the web app both build their CASL
+ability from these rows, so they evaluate exactly the same policy.
+
+## Where rules live
+
+- **Source of truth (declarative):** `DEFAULT_ABILITY_RULES` in
+  [`packages/auth/src/rules.ts`](../packages/auth/src/rules.ts) reads like a
+  table of one rule per line. To change what a role can do, edit this list.
+- **Runtime store:** the API's `AbilityService`
+  ([`apps/api/src/authorization/`](../apps/api/src/authorization/)) reconciles
+  the `AbilityRule` table to that list on boot, then caches the rows in memory.
+- **Per-user scope:** conditions use interpolation tokens — `{{userId}}` and
+  `{{organizationId}}` — that resolve to the caller before a rule is applied. A
+  rule whose scope can't be resolved is dropped, so authorization fails closed.
+- **Shared with clients:** `POST /auth/login`, `/auth/refresh`, and
+  `GET /auth/me` return the caller's already-scoped rules. The web
+  `AbilityProvider` feeds them straight into `buildAbility`.
+
 ## Account and role assignment
 
 Public registration creates a new organization and its first `ORG_ADMIN`.
@@ -31,7 +52,8 @@ Additional accounts use secure invitations:
 - `OWNER`: read-only performance and financial access for owned properties.
 - `TENANT`: own lease, payments, maintenance requests, and messages.
 
-The source of truth is `defineAbilityFor` in `packages/auth/src/index.ts`.
+The per-role rules that grant these capabilities live in
+`DEFAULT_ABILITY_RULES` (`packages/auth/src/rules.ts`).
 
 ## Protecting an API route
 
@@ -55,7 +77,7 @@ also check the actual loaded record to enforce organization, owner, tenant, and
 assignment conditions:
 
 ```ts
-const ability = defineAbilityFor(user);
+const ability = this.abilities.abilityForUser(user); // injected AbilityService
 const propertySubject = resource('Property', property);
 
 if (!ability.can('update', propertySubject)) {
@@ -110,10 +132,11 @@ endpoint must enforce the same permission.
 
 ## Adding a new feature
 
-1. Add its subject to `DomainSubject`.
-2. Add explicit role rules in `defineAbilityFor`.
+1. Add its subject to `DomainSubject` (`packages/auth/src/ability.ts`).
+2. Add role rules to `DEFAULT_ABILITY_RULES` (`packages/auth/src/rules.ts`) and
+   restart the API so it reconciles them into the `AbilityRule` table.
 3. Add `@CheckAbility` to controller routes.
 4. Scope database queries by organization and check loaded resources with
-   `resource(...)`.
+   `resource(...)` plus the injected `AbilityService`.
 5. Reuse `useAbility` or `RequireAbility` in the web app.
 6. Test both an allowed case and a cross-organization/ownership denial.

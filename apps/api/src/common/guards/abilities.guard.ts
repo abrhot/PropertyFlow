@@ -5,8 +5,8 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { defineAbilityFor } from '@propertyflow/auth';
 import type { RequestUser } from '@propertyflow/types';
+import { AbilityService } from '../../authorization/ability.service';
 import {
   REQUIRED_ABILITIES_KEY,
   type RequiredAbility,
@@ -15,7 +15,10 @@ import {
 /** Enforces action/subject policies after JwtAuthGuard has authenticated the request. */
 @Injectable()
 export class AbilitiesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly abilities: AbilityService,
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const requirements = this.reflector.getAllAndOverride<RequiredAbility[] | undefined>(
@@ -27,7 +30,7 @@ export class AbilitiesGuard implements CanActivate {
     const { user } = context.switchToHttp().getRequest<{ user?: RequestUser }>();
     if (!user) throw new ForbiddenException('Authentication is required');
 
-    const ability = defineAbilityFor(user);
+    const ability = this.abilities.abilityForUser(user);
     const denied = requirements.find(({ action, subject }) => !ability.can(action, subject));
 
     if (denied) {

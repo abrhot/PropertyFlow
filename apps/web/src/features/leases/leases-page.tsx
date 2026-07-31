@@ -144,7 +144,7 @@ function LeasesContent() {
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight">Leases</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">Leases</h2>
             <p className="max-w-2xl text-muted-foreground">
               Agreements across your portfolio, with tenant, term, and rent.
             </p>
@@ -355,13 +355,17 @@ function SummaryCard({
   icon: typeof FileText;
 }) {
   return (
-    <Card>
+    <Card className="transition-shadow hover:shadow-elevated">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardDescription>{label}</CardDescription>
-          <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Icon className="h-4 w-4" aria-hidden="true" />
+          </span>
         </div>
-        <CardTitle className="text-2xl">{value ?? <Skeleton className="h-7 w-20" />}</CardTitle>
+        <CardTitle className="text-3xl">
+          {value ?? <Skeleton className="h-8 w-20" />}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-xs text-muted-foreground">{detail}</p>

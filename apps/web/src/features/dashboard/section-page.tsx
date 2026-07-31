@@ -41,8 +41,8 @@ function SectionContent({ section }: { section: Section }) {
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold tracking-tight">{meta.label}</h2>
-              <Badge variant="outline">Preview data</Badge>
+              <h2 className="text-2xl font-semibold tracking-tight">{meta.label}</h2>
+              <Badge variant="highlight">Preview data</Badge>
             </div>
             <p className="max-w-2xl text-muted-foreground">{meta.description}</p>
           </div>
@@ -57,7 +57,7 @@ function SectionContent({ section }: { section: Section }) {
             <Card key={stat.label}>
               <CardHeader className="pb-2">
                 <CardDescription>{stat.label}</CardDescription>
-                <CardTitle className="text-2xl">{stat.value}</CardTitle>
+                <CardTitle className="text-3xl">{stat.value}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="flex items-center gap-1 text-xs text-muted-foreground">

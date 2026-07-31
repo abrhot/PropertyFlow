@@ -77,6 +77,73 @@ the tenant must be an active `TENANT` in the same organization. Owner scoping
 works through the unit's property owner. A lease outside the caller's scope
 returns `404` rather than `403`.
 
+## Payment endpoints
+
+| Method | Path                | Auth             | Body / Notes |
+| ------ | ------------------- | ---------------- | ------------ |
+| GET    | `/payments`         | `read Payment`   | Query: `status`, `leaseId`, `tenantId`, `search`. Returns `{ payments, summary }`. |
+| GET    | `/payments/options` | `create Payment` | Active leases in the caller's organization, for recording ledger entries. |
+| POST   | `/payments`         | `create Payment` | Creates a charge or offline payment in integer cents. |
+| PATCH  | `/payments/:id`     | `update Payment` | Updates status, amount, due date, method, or reference. |
+| POST   | `/payments/:id/pay` | `pay Payment`    | Tenant-scoped provider boundary; currently settles through the demo ACH adapter. |
+
+Payment queries are organization-, tenant-, and owner-scoped through CASL. The
+`pay` route is intentionally provider-independent so Stripe can replace the demo
+adapter without changing the frontend contract.
+
+## Maintenance endpoints
+
+| Method | Path                         | Auth                       | Body / Notes |
+| ------ | ---------------------------- | -------------------------- | ------------ |
+| GET    | `/maintenance-requests`      | `read MaintenanceRequest`  | Query: `status`, `priority`, `search`. Tenant sees own; staff see the org queue. |
+| GET    | `/maintenance-requests/options` | `create MaintenanceRequest` | Leases/units and assignable technicians for the forms. |
+| POST   | `/maintenance-requests`      | `create MaintenanceRequest`| Tenant or staff submits a request against a lease/unit. |
+| PATCH  | `/maintenance-requests/:id`  | `update MaintenanceRequest`| Update title, description, priority, or status. |
+| GET    | `/work-orders`               | `read WorkOrder`           | Query: `status`, `search`. Technician sees jobs assigned to them. |
+| POST   | `/work-orders`               | `assign WorkOrder`         | Assigns a request to a technician, creating the work order. |
+| PATCH  | `/work-orders/:id`           | `update WorkOrder`         | Technician updates status, due date, or notes. |
+
+## Tenant & application endpoints
+
+| Method | Path                    | Auth                | Body / Notes |
+| ------ | ----------------------- | ------------------- | ------------ |
+| GET    | `/tenants`              | `read User`         | Query: `search`, `includeInactive`. Directory of residents with active-lease placement. |
+| GET    | `/applications`         | `read Application`   | Query: `status`, `search`. Returns `{ applications, summary }`. |
+| GET    | `/applications/options` | `create Application` | Vacant units the applicant can be placed against. |
+| POST   | `/applications`         | `create Application` | Records a rental application for a unit. |
+| PATCH  | `/applications/:id`     | `update Application` | Advances status (screening → approved/denied) or edits notes. |
+
+## Reports endpoint
+
+| Method | Path                 | Auth          | Body / Notes |
+| ------ | -------------------- | ------------- | ------------ |
+| GET    | `/reports/dashboard` | `read Report` | Owner/org-scoped aggregates: collected vs. outstanding cash flow, occupancy by property, and saved reports. |
+
+## Messaging endpoints
+
+| Method | Path                          | Auth             | Body / Notes |
+| ------ | ----------------------------- | ---------------- | ------------ |
+| GET    | `/conversations`              | `read Message`   | Query: `search`. Staff see every org conversation; tenants only ones they participate in. |
+| GET    | `/conversations/options`      | `read Message`   | For staff: residents they can start a thread with. Empty for tenants. |
+| GET    | `/conversations/:id`          | `read Message`   | A conversation with its messages in chronological order. |
+| POST   | `/conversations`              | `create Message` | Starts a thread (staff must pass `participantId`; tenants message management). |
+| POST   | `/conversations/:id/messages` | `create Message` | Appends a reply and bumps the conversation's `lastMessageAt`. |
+
+Conversations are org-scoped; `participantIds` denormalizes the tenant(s) on a
+thread so a tenant's `participantIds`-scoped rule maps to a single-table query.
+
+## Platform administration (SUPER_ADMIN)
+
+| Method | Path                 | Auth                  | Body / Notes |
+| ------ | -------------------- | --------------------- | ------------ |
+| GET    | `/organizations`     | `read Organization`   | All management companies with user/property/active-lease counts. Platform admin only. |
+| PATCH  | `/organizations/:id` | `update Organization` | Change an org's name, subscription tier, or active status. |
+| GET    | `/billing/overview`  | `access billing`      | Subscription MRR, per-tier revenue breakdown, and per-org subscription rows. |
+
+These routes additionally assert `SUPER_ADMIN` in the service, so an org admin
+whose CASL rule allows reading *their own* organization can never enumerate the
+platform.
+
 ## Token model
 
 - **Access token**: short-lived JWT (default 15m), sent as `Authorization: Bearer`.
@@ -97,5 +164,7 @@ returns `404` rather than `403`.
 
 ## Planned modules
 
-Rent & payments (Stripe), Maintenance work orders, Accounting/reporting,
-Messaging, Notifications.
+Stripe processing and rent schedules (the `pay Payment` boundary is ready),
+notifications/email delivery, and the cutting-edge pillars in
+[roadmap.md](./roadmap.md) (immersive media, AI workflows, live analytics,
+concierge hub).

@@ -4,44 +4,67 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
+    /* Warm ivory surfaces with a restrained evergreen brand. */
+    --background: 42 38% 96%;
+    --foreground: 155 18% 14%;
+    --card: 40 38% 99%;
+    --card-foreground: 155 18% 14%;
+
+    --primary: 154 38% 27%;
+    --primary-foreground: 44 50% 97%;
+
+    --secondary: 42 24% 91%;
+    --secondary-foreground: 155 22% 19%;
+    --muted: 40 22% 92%;
+    --muted-foreground: 150 8% 43%;
+    --accent: 143 20% 90%;
+    --accent-foreground: 154 34% 22%;
+
+    /* Status */
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.6rem;
+    --success: 152 55% 38%;
+    --success-foreground: 150 60% 97%;
+    --warning: 32 95% 44%;
+    --warning-foreground: 40 96% 97%;
+    --highlight: 43 96% 52%;
+    --highlight-foreground: 30 60% 12%;
+
+    /* Lines & focus */
+    --border: 39 18% 84%;
+    --input: 39 18% 80%;
+    --ring: 154 38% 27%;
+    --radius: 0.875rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --background: 225 30% 7%;
+    --foreground: 213 31% 91%;
+    --card: 224 25% 10%;
+    --card-foreground: 213 31% 91%;
+
+    --primary: 250 84% 72%;
+    --primary-foreground: 226 40% 11%;
+
+    --secondary: 222 20% 15%;
+    --secondary-foreground: 213 31% 92%;
+    --muted: 223 20% 13%;
+    --muted-foreground: 217 14% 60%;
+    --accent: 222 20% 17%;
+    --accent-foreground: 213 31% 96%;
+
+    --destructive: 0 62% 52%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --success: 152 46% 50%;
+    --success-foreground: 150 60% 96%;
+    --warning: 38 92% 60%;
+    --warning-foreground: 30 60% 10%;
+    --highlight: 43 88% 62%;
+    --highlight-foreground: 30 60% 12%;
+
+    --border: 222 16% 18%;
+    --input: 222 16% 21%;
+    --ring: 250 84% 72%;
   }
 
   * {
@@ -50,5 +73,49 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings:
+      'cv02' 1,
+      'cv03' 1,
+      'cv04' 1,
+      'ss01' 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Balanced, tighter headings for a more editorial, premium feel. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+}
+
+@layer components {
+  /* A soft cream canvas with subtle organic color. */
+  .bg-app {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(52rem 52rem at 105% -8%, hsl(var(--primary) / 0.07), transparent 58%),
+      radial-gradient(44rem 44rem at -8% 105%, hsl(var(--highlight) / 0.07), transparent 58%);
+    background-attachment: fixed;
+  }
+
+  /* Frosted, sticky bar used by the dashboard header. */
+  .bg-frost {
+    background-color: hsl(var(--card) / 0.86);
+    backdrop-filter: saturate(140%) blur(14px);
+  }
+
+  /* Gradient brand text for hero/wordmark accents. */
+  .text-gradient {
+    background-image: linear-gradient(
+      110deg,
+      hsl(var(--primary)),
+      hsl(var(--primary) / 0.7) 40%,
+      hsl(var(--highlight))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 }

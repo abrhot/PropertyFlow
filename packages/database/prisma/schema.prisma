@@ -54,6 +54,73 @@ enum LeaseStatus {
   TERMINATED
 }
 
+enum PaymentStatus {
+  PENDING
+  PAID
+  LATE
+  FAILED
+  REFUNDED
+}
+
+enum MaintenancePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum MaintenanceRequestStatus {
+  SUBMITTED
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum WorkOrderStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ApplicationStatus {
+  NEW
+  SCREENING
+  APPROVED
+  DENIED
+  WITHDRAWN
+}
+
+/// A single authorization rule (CASL "RawRule") for a role, stored as data so
+/// the API and every client evaluate the exact same policy. The declarative
+/// source of truth lives in `@propertyflow/auth`; the API reconciles this table
+/// to it on boot. `conditions` may hold interpolation tokens (e.g. "{{userId}}")
+/// that the API resolves for the current user before the rule is applied.
+model AbilityRule {
+  id         String   @id @default(uuid())
+  role       UserRole
+  /// A CASL action or list of actions, e.g. "read" or ["create", "update"].
+  action     Json
+  /// The subject/entity the rule applies to, e.g. "Property".
+  subject    Json?
+  /// Restricts the rule to specific fields of the subject.
+  fields     String[] @default([])
+  /// Attribute conditions (MongoDB-style) that scope the rule.
+  conditions Json?
+  /// When true the rule forbids instead of allows. Order matters: forbids must
+  /// come after the grants they override, preserved via `sortOrder`.
+  inverted   Boolean  @default(false)
+  /// Human-readable explanation surfaced when an inverted rule blocks access.
+  reason     String?
+  /// Preserves the authored order within a role (CASL is order-sensitive).
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([role])
+}
+
 /// A management company: the "tenant" of the multi-tenant SaaS platform.
 model Organization {
   id               String           @id @default(uuid())
@@ -61,13 +128,29 @@ model Organization {
   slug             String           @unique
   subscriptionTier SubscriptionTier @default(TRIAL)
   isActive         Boolean          @default(true)
+  // Editable organization profile (Settings → Organization). All optional so
+  // existing orgs remain valid before an admin fills them in.
+  contactEmail     String?
+  contactPhone     String?
+  addressLine1     String?
+  addressLine2     String?
+  city             String?
+  state            String?
+  postalCode       String?
+  websiteUrl       String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  users       User[]
-  invitations OrganizationInvitation[]
-  properties  Property[]
-  leases      Lease[]
+  users               User[]
+  invitations         OrganizationInvitation[]
+  properties          Property[]
+  leases              Lease[]
+  payments            Payment[]
+  maintenanceRequests MaintenanceRequest[]
+  workOrders          WorkOrder[]
+  applications        Application[]
+  conversations       Conversation[]
+  messages            Message[]
 }
 
 model User {
@@ -81,14 +164,27 @@ model User {
   role            UserRole      @default(TENANT)
   isActive        Boolean       @default(true)
   emailVerifiedAt DateTime?
+  // Per-user notification preferences (Settings → Notifications).
+  notifyByEmail       Boolean   @default(true)
+  notifyPayments      Boolean   @default(true)
+  notifyMaintenance   Boolean   @default(true)
+  notifyMessages      Boolean   @default(true)
+  notifyAnnouncements Boolean   @default(true)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
-  invitationsSent     OrganizationInvitation[] @relation("InvitationsSent")
-  propertiesOwned     Property[]               @relation("PropertiesOwned")
-  leasesHeld          Lease[]                  @relation("LeasesHeld")
+  refreshTokens                RefreshToken[]
+  passwordResetTokens          PasswordResetToken[]
+  invitationsSent              OrganizationInvitation[] @relation("InvitationsSent")
+  propertiesOwned              Property[]               @relation("PropertiesOwned")
+  leasesHeld                   Lease[]                  @relation("LeasesHeld")
+  paymentsMade                 Payment[]                @relation("PaymentsMade")
+  paymentsOwned                Payment[]                @relation("PaymentsOwned")
+  maintenanceRequestsSubmitted MaintenanceRequest[]     @relation("MaintenanceRequestsSubmitted")
+  maintenanceRequestsAssigned  MaintenanceRequest[]     @relation("MaintenanceRequestsAssigned")
+  maintenanceRequestsOwned     MaintenanceRequest[]     @relation("MaintenanceRequestsOwned")
+  workOrdersAssigned           WorkOrder[]              @relation("WorkOrdersAssigned")
+  messagesSent                 Message[]                @relation("MessagesSent")
 
   @@index([organizationId])
 }
@@ -186,7 +282,9 @@ model Unit {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  leases Lease[]
+  leases              Lease[]
+  maintenanceRequests MaintenanceRequest[]
+  applications        Application[]
 
   @@unique([propertyId, label])
   @@index([propertyId])
@@ -214,7 +312,154 @@ model Lease {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  payments            Payment[]
+  maintenanceRequests MaintenanceRequest[]
+
   @@index([organizationId])
   @@index([unitId])
   @@index([tenantId])
+}
+
+/// A rent charge or received payment tied to a lease. Tenant and owner ids are
+/// denormalized so CASL scopes can be translated to efficient single-table queries.
+model Payment {
+  id             String        @id @default(uuid())
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  lease          Lease         @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  leaseId        String
+  tenant         User          @relation("PaymentsMade", fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId       String
+  owner          User?         @relation("PaymentsOwned", fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId        String?
+  status         PaymentStatus @default(PENDING)
+  amountCents    Int
+  dueDate        DateTime
+  paidAt         DateTime?
+  description    String
+  method         String?
+  reference      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId])
+  @@index([leaseId])
+  @@index([tenantId])
+  @@index([organizationId, ownerId])
+  @@index([organizationId, status, dueDate])
+}
+
+model MaintenanceRequest {
+  id             String                   @id @default(uuid())
+  organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  unit           Unit                     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unitId         String
+  lease          Lease?                   @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  leaseId        String?
+  tenant         User                     @relation("MaintenanceRequestsSubmitted", fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId       String
+  owner          User?                    @relation("MaintenanceRequestsOwned", fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId        String?
+  assignee       User?                    @relation("MaintenanceRequestsAssigned", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeId     String?
+  title          String
+  description    String
+  priority       MaintenancePriority      @default(NORMAL)
+  status         MaintenanceRequestStatus @default(SUBMITTED)
+  submittedAt    DateTime                 @default(now())
+  completedAt    DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  workOrder      WorkOrder?
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, tenantId])
+  @@index([organizationId, assigneeId])
+  @@index([unitId])
+}
+
+model WorkOrder {
+  id                   String             @id @default(uuid())
+  organization         Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId       String
+  maintenanceRequest   MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+  maintenanceRequestId String             @unique
+  assignee             User               @relation("WorkOrdersAssigned", fields: [assigneeId], references: [id], onDelete: Restrict)
+  assigneeId           String
+  tenantId             String
+  ownerId              String?
+  status               WorkOrderStatus    @default(ASSIGNED)
+  dueDate              DateTime?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  notes                String?
+  referenceCode        String             @unique
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, assigneeId])
+  @@index([organizationId, status])
+}
+
+/// A message thread between a tenant and their management company's staff.
+/// `participantIds` is a denormalized list of the tenant user ids on the thread,
+/// so a tenant's CASL scope (`participantIds` contains "{{userId}}") maps to a
+/// single-table query. Staff are scoped org-wide and see every conversation.
+model Conversation {
+  id             String       @id @default(uuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  subject        String
+  participantIds String[]     @default([])
+  lastMessageAt  DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  messages Message[]
+
+  @@index([organizationId])
+  @@index([organizationId, lastMessageAt])
+}
+
+/// A single message within a {@link Conversation}. `organizationId` is
+/// denormalized for scoped queries; `senderId` is the authoring user.
+model Message {
+  id             String       @id @default(uuid())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  sender         User         @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId       String
+  body           String
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([organizationId])
+}
+
+model Application {
+  id                 String            @id @default(uuid())
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId     String
+  unit               Unit              @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unitId             String
+  applicantName      String
+  applicantEmail     String
+  applicantPhone     String?
+  monthlyIncomeCents Int?
+  desiredMoveIn      DateTime?
+  status             ApplicationStatus @default(NEW)
+  notes              String?
+  submittedAt        DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([unitId])
+  @@index([applicantEmail])
 }

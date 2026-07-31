@@ -1,6 +1,6 @@
 'use client';
 
-import type { AuthUser } from '@propertyflow/types';
+import type { AbilityRule, AuthResponse, AuthUser, SessionResponse } from '@propertyflow/types';
 import type { AcceptInvitationInput, LoginInput, RegisterInput } from '@propertyflow/validation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, type ReactNode } from 'react';
@@ -10,6 +10,8 @@ const ME_QUERY_KEY = ['auth', 'me'] as const;
 
 interface AuthContextValue {
   user: AuthUser | null;
+  /** The caller's authorization rules, scoped to them by the API. */
+  abilityRules: AbilityRule[];
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (input: LoginInput) => Promise<void>;
@@ -19,6 +21,11 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+/** The auth responses and the `/me` payload share the same session shape. */
+function toSession(response: AuthResponse): SessionResponse {
+  return { user: response.user, abilityRules: response.abilityRules };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -39,17 +46,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: (input: LoginInput) => api.login(input),
-    onSuccess: (res) => queryClient.setQueryData(ME_QUERY_KEY, res.user),
+    onSuccess: (res) => queryClient.setQueryData(ME_QUERY_KEY, toSession(res)),
   });
 
   const registerMutation = useMutation({
     mutationFn: (input: RegisterInput) => api.register(input),
-    onSuccess: (res) => queryClient.setQueryData(ME_QUERY_KEY, res.user),
+    onSuccess: (res) => queryClient.setQueryData(ME_QUERY_KEY, toSession(res)),
   });
 
   const acceptInvitationMutation = useMutation({
     mutationFn: (input: AcceptInvitationInput) => api.acceptInvitation(input),
-    onSuccess: (res) => queryClient.setQueryData(ME_QUERY_KEY, res.user),
+    onSuccess: (res) => queryClient.setQueryData(ME_QUERY_KEY, toSession(res)),
   });
 
   const logoutMutation = useMutation({
@@ -61,7 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const value: AuthContextValue = {
-    user: data ?? null,
+    user: data?.user ?? null,
+    abilityRules: data?.abilityRules ?? [],
     isLoading,
     isAuthenticated: Boolean(data),
     login: async (input) => {
