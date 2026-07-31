@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { SUBSCRIPTION_TIER_PRICE_CENTS } from '@propertyflow/constants';
 import type {
   DashboardMetric,
   DashboardSummaryResponse,
@@ -21,7 +20,6 @@ export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
   async summary(user: RequestUser): Promise<DashboardSummaryResponse> {
-    if (user.role === 'SUPER_ADMIN') return this.platformSummary();
     if (user.role === 'TENANT') return this.tenantSummary(user);
     return this.portfolioSummary(user);
   }
@@ -180,74 +178,6 @@ export class DashboardService {
     };
   }
 
-  /** Platform admin: organizations, subscriptions, and revenue growth. */
-  private async platformSummary(): Promise<DashboardSummaryResponse> {
-    const [organizations, userCount] = await Promise.all([
-      this.prisma.client.organization.findMany({
-        select: { subscriptionTier: true, isActive: true, createdAt: true },
-      }),
-      this.prisma.client.user.count(),
-    ]);
-
-    const active = organizations.filter((o) => o.isActive);
-    const mrrCents = active.reduce((sum, o) => sum + SUBSCRIPTION_TIER_PRICE_CENTS[o.subscriptionTier], 0);
-    const paying = active.filter((o) => o.subscriptionTier !== 'TRIAL').length;
-
-    const metrics: DashboardMetric[] = [
-      {
-        key: 'orgs',
-        label: 'Organizations',
-        value: formatCount(organizations.length),
-        delta: `${active.length} active`,
-        trend: 'up',
-        hint: 'Management companies',
-      },
-      {
-        key: 'mrr',
-        label: 'Monthly recurring revenue',
-        value: formatCurrency(mrrCents),
-        delta: `${paying} paying`,
-        trend: 'up',
-        hint: 'Across active subscriptions',
-      },
-      {
-        key: 'subs',
-        label: 'Active subscriptions',
-        value: formatCount(active.length),
-        delta: `${organizations.length - active.length} suspended`,
-        trend: 'neutral',
-        hint: 'Currently billable',
-      },
-      {
-        key: 'users',
-        label: 'Platform users',
-        value: formatCount(userCount),
-        delta: 'All roles',
-        trend: 'up',
-        hint: 'Every seat on the platform',
-      },
-    ];
-
-    // Cumulative MRR (all active) and cumulative premium MRR, per day — a smooth
-    // rising curve straight from real signup dates.
-    const totalEvents = organizations
-      .filter((o) => o.isActive)
-      .map((o) => ({ date: o.createdAt, amount: SUBSCRIPTION_TIER_PRICE_CENTS[o.subscriptionTier] / 100 }));
-    const premiumEvents = organizations
-      .filter((o) => o.isActive && ['GROWTH', 'ENTERPRISE'].includes(o.subscriptionTier))
-      .map((o) => ({ date: o.createdAt, amount: SUBSCRIPTION_TIER_PRICE_CENTS[o.subscriptionTier] / 100 }));
-
-    return {
-      metrics,
-      trend: {
-        title: 'Recurring revenue',
-        subtitle: 'Monthly recurring revenue over the last 3 months',
-        primaryLabel: 'Total MRR',
-        secondaryLabel: 'Premium MRR',
-        points: zipSeries(cumulativeSums(totalEvents), cumulativeSums(premiumEvents)),
-      },
-    };
-  }
 }
 
 function sumInMonth(
@@ -288,20 +218,6 @@ function trailingSums(events: AmountEvent[]): { date: string; value: number }[] 
     const value = events
       .filter((e) => e.date > start && e.date <= end)
       .reduce((sum, e) => sum + e.amount, 0);
-    points.push({ date: isoDay(end), value: Math.round(value) });
-  }
-  return points;
-}
-
-/** For each of the last DAYS days, the cumulative sum of all events up to that day. */
-function cumulativeSums(events: AmountEvent[]): { date: string; value: number }[] {
-  const points: { date: string; value: number }[] = [];
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  for (let i = DAYS - 1; i >= 0; i -= 1) {
-    const end = new Date(today);
-    end.setDate(end.getDate() - i);
-    const value = events.filter((e) => e.date <= end).reduce((sum, e) => sum + e.amount, 0);
     points.push({ date: isoDay(end), value: Math.round(value) });
   }
   return points;

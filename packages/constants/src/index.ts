@@ -8,12 +8,8 @@
  * organization/property to prevent cross-tenant data leakage.
  */
 export const USER_ROLES = [
-  'SUPER_ADMIN', // Platform-wide administrator (no organization).
-  'ORG_ADMIN', // Manages a single management company (organization).
-  'PROPERTY_MANAGER', // Manages assigned properties.
-  'LEASING_AGENT', // Listings, applications, screening, lease creation.
-  'ACCOUNTANT', // Financial data, ledgers, statements.
-  'MAINTENANCE', // Maintenance staff / vendor working assigned work orders.
+  'ORG_ADMIN', // Runs the management company: staff, properties, owners, finances, settings.
+  'PROPERTY_MANAGER', // Day-to-day operations: properties, leases, applications, maintenance.
   'OWNER', // Property owner; views performance for owned properties.
   'TENANT', // Pays rent, submits requests, views lease.
 ] as const;
@@ -23,20 +19,14 @@ export type UserRole = (typeof USER_ROLES)[number];
 export const STAFF_ROLES = [
   'ORG_ADMIN',
   'PROPERTY_MANAGER',
-  'LEASING_AGENT',
-  'ACCOUNTANT',
 ] as const satisfies readonly UserRole[];
 
 /**
  * Roles an organization administrator may assign through an invitation.
- * SUPER_ADMIN is platform-controlled and can never be self-selected or invited.
  */
 export const INVITABLE_ROLES = [
   'ORG_ADMIN',
   'PROPERTY_MANAGER',
-  'LEASING_AGENT',
-  'ACCOUNTANT',
-  'MAINTENANCE',
   'OWNER',
   'TENANT',
 ] as const satisfies readonly UserRole[];
@@ -183,23 +173,17 @@ export const SESSION_HINT_COOKIE = 'pf_session';
 // ---------------------------------------------------------------------------
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  SUPER_ADMIN: 'Super Administrator',
   ORG_ADMIN: 'Organization Admin',
   PROPERTY_MANAGER: 'Property Manager',
-  LEASING_AGENT: 'Leasing Agent',
-  ACCOUNTANT: 'Accountant',
-  MAINTENANCE: 'Maintenance / Vendor',
   OWNER: 'Property Owner',
   TENANT: 'Tenant',
 };
 
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
-  SUPER_ADMIN: 'Platform-wide control: organizations, subscriptions, and system analytics.',
-  ORG_ADMIN: 'Runs a management company: staff, properties, owners, and settings.',
-  PROPERTY_MANAGER: 'Manages assigned properties, leases, applications, and maintenance.',
-  LEASING_AGENT: 'Handles listings, applications, screening, and lease creation.',
-  ACCOUNTANT: 'Owns the financials: rent ledgers, statements, and reconciliation.',
-  MAINTENANCE: 'Works assigned work orders and updates their status from the field.',
+  ORG_ADMIN:
+    'Runs the company: staff, properties, owners, leasing, finances, maintenance, and settings.',
+  PROPERTY_MANAGER:
+    'Day-to-day operations: properties, leases, applications, payments, and maintenance.',
   OWNER: 'Views performance, occupancy, and financials for owned properties.',
   TENANT: 'Pays rent, submits maintenance requests, and views the lease.',
 };
@@ -207,8 +191,6 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
 /** Every navigable area in the product (features arrive across the roadmap). */
 export const APP_SECTIONS = [
   'dashboard',
-  'organizations',
-  'billing',
   'properties',
   'leases',
   'applications',
@@ -231,13 +213,14 @@ export type AppSection = (typeof APP_SECTIONS)[number];
  * consumers migrating from the original role-list navigation.
  */
 export const ROLE_SECTIONS: Record<UserRole, AppSection[]> = {
-  SUPER_ADMIN: ['dashboard', 'organizations', 'billing', 'reports', 'settings'],
   ORG_ADMIN: [
     'dashboard',
     'properties',
     'leases',
+    'applications',
     'payments',
     'maintenance',
+    'work_orders',
     'tenants',
     'messages',
     'reports',
@@ -248,13 +231,14 @@ export const ROLE_SECTIONS: Record<UserRole, AppSection[]> = {
     'properties',
     'leases',
     'applications',
+    'payments',
     'maintenance',
+    'work_orders',
+    'tenants',
     'messages',
     'reports',
+    'settings',
   ],
-  LEASING_AGENT: ['dashboard', 'applications', 'leases', 'tenants'],
-  ACCOUNTANT: ['dashboard', 'payments', 'reports'],
-  MAINTENANCE: ['dashboard', 'work_orders'],
-  OWNER: ['dashboard', 'properties', 'reports'],
-  TENANT: ['dashboard', 'my_lease', 'my_payments', 'my_requests', 'messages'],
+  OWNER: ['dashboard', 'properties', 'reports', 'settings'],
+  TENANT: ['dashboard', 'my_lease', 'my_payments', 'my_requests', 'messages', 'settings'],
 };

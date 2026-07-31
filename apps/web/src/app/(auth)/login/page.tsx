@@ -27,12 +27,8 @@ const DEMO_PASSWORD = 'Password123';
 
 /** Seeded accounts (see packages/database/prisma/seed.mjs) for quick role testing. */
 const DEMO_ACCOUNTS: { role: UserRole; email: string }[] = [
-  { role: 'SUPER_ADMIN', email: 'superadmin@demo.test' },
   { role: 'ORG_ADMIN', email: 'orgadmin@demo.test' },
   { role: 'PROPERTY_MANAGER', email: 'manager@demo.test' },
-  { role: 'LEASING_AGENT', email: 'agent@demo.test' },
-  { role: 'ACCOUNTANT', email: 'accountant@demo.test' },
-  { role: 'MAINTENANCE', email: 'maintenance@demo.test' },
   { role: 'OWNER', email: 'owner@demo.test' },
   { role: 'TENANT', email: 'tenant@demo.test' },
 ];

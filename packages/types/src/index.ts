@@ -38,7 +38,7 @@ export interface Organization extends Timestamped {
 
 export interface User extends Timestamped {
   id: ID;
-  /** Null for SUPER_ADMIN (platform-wide, not tied to an organization). */
+  /** Nullable so an account can exist briefly before being attached to an org. */
   organizationId: ID | null;
   email: string;
   fullName: string;
@@ -215,6 +215,8 @@ export interface Property extends Timestamped, PropertyAddress {
   type: PropertyType;
   yearBuilt: number | null;
   notes: string | null;
+  /** Optional cover photo URL. */
+  imageUrl: string | null;
   isActive: boolean;
   owner: PropertyOwnerSummary | null;
   stats: PropertyStats;
@@ -246,6 +248,7 @@ export interface CreatePropertyRequest extends Omit<PropertyAddress, 'addressLin
   country?: string;
   yearBuilt?: number;
   notes?: string;
+  imageUrl?: string;
   ownerId?: ID;
 }
 
@@ -621,32 +624,6 @@ export interface CreateMessageRequest {
   body: string;
 }
 
-// ---- Platform administration (SUPER_ADMIN) ----
-
-export interface PlatformOrganization extends Organization {
-  counts: {
-    users: number;
-    properties: number;
-    activeLeases: number;
-  };
-}
-
-export interface OrganizationListResponse {
-  organizations: PlatformOrganization[];
-  summary: {
-    organizationCount: number;
-    activeCount: number;
-    userCount: number;
-    propertyCount: number;
-  };
-}
-
-export interface UpdateOrganizationRequest {
-  name?: string;
-  subscriptionTier?: SubscriptionTier;
-  isActive?: boolean;
-}
-
 // ---- Settings ----
 
 /** Editable organization profile shown in Settings → Organization. */
@@ -685,7 +662,7 @@ export interface AccountProfile {
 /** Everything the Settings page needs for the current user, in one request. */
 export interface SettingsResponse {
   profile: AccountProfile;
-  /** Null for SUPER_ADMIN (no owning organization). */
+  /** Null if the account is not attached to an organization. */
   organization: OrganizationProfile | null;
   notifications: NotificationPreferences;
 }
@@ -706,35 +683,6 @@ export type UpdateNotificationPreferencesRequest = Partial<NotificationPreferenc
 
 export interface UpdateProfileRequest {
   fullName?: string;
-}
-
-// ---- Platform billing (SUPER_ADMIN) ----
-
-export interface BillingTierBreakdown {
-  tier: SubscriptionTier;
-  organizationCount: number;
-  monthlyRevenueCents: number;
-}
-
-export interface BillingSubscription {
-  organizationId: ID;
-  organizationName: string;
-  subscriptionTier: SubscriptionTier;
-  isActive: boolean;
-  monthlyPriceCents: number;
-  userCount: number;
-  since: ISODateString;
-}
-
-export interface BillingOverviewResponse {
-  summary: {
-    mrrCents: number;
-    activeSubscriptions: number;
-    trialCount: number;
-    payingCount: number;
-  };
-  byTier: BillingTierBreakdown[];
-  subscriptions: BillingSubscription[];
 }
 
 // ---- Dashboard summary (role-aware landing) ----

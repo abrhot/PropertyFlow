@@ -25,11 +25,33 @@ each area has a dedicated route:
 - **Reports** — owner/org-scoped aggregates with charts and a sortable table.
 - **Messages** — tenant ↔ staff conversations (org-wide for staff, participant
   scoped for tenants).
-- **Organizations & Billing** — SUPER_ADMIN platform administration: per-org
-  plan/portfolio management and subscription MRR analytics.
 - **Settings** — real API for the account profile, per-user notification
   preferences, and the organization profile (contact + address), alongside the
   existing team-invitation management for admins.
+
+### Roles (consolidated)
+
+The role set was trimmed to four conventional, high-value roles, each enforced by
+the database-driven CASL rules:
+
+- **Organization Admin** — runs the company: staff, portfolio, leasing,
+  finances, maintenance, and settings.
+- **Property Manager** — day-to-day operations across properties, leases,
+  applications, payments, and maintenance (no staff/org administration).
+- **Owner** — a private, read-only view of the properties they own.
+- **Tenant** — pays rent, submits requests, and views their lease.
+
+Leasing, accounting, and field-maintenance duties fold into Admin/Manager. The
+platform-operator perspective (SUPER_ADMIN with cross-org Organizations + Billing
+MRR) was retired, since a single company does not manage other companies.
+
+### Marketing & media
+
+- **Landing page** at `/` — a commercial marketing page (hero, features, roles,
+  CTA) with imagery; signed-in visitors are redirected to the dashboard.
+- **Property photos** — an optional cover-photo URL on each property, shown on
+  the portfolio cards and the property detail hero. Direct file uploads remain
+  queued behind the Media service below.
 
 ## Delivery — done
 

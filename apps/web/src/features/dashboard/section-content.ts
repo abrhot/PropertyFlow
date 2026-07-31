@@ -28,51 +28,6 @@ const content = (
 ): SectionContent => ({ action, search, stats, columns, rows });
 
 export const SECTION_CONTENT: Record<Section, SectionContent> = {
-  organizations: content(
-    'Add organization',
-    'Search organizations...',
-    [
-      { label: 'Organizations', value: '48', detail: '+4 this month' },
-      { label: 'Active subscriptions', value: '45', detail: '93.8% active' },
-      { label: 'Managed units', value: '12,840', detail: '+8.2% this quarter' },
-    ],
-    ['Organization', 'Plan', 'Portfolio'],
-    [
-      {
-        primary: 'Northstar Living',
-        secondary: 'Growth',
-        tertiary: '1,284 units',
-        status: 'Active',
-      },
-      {
-        primary: 'Harbor Property Group',
-        secondary: 'Enterprise',
-        tertiary: '3,420 units',
-        status: 'Active',
-      },
-      { primary: 'Cedar & Stone', secondary: 'Trial', tertiary: '86 units', status: 'Trial' },
-    ],
-  ),
-  billing: content(
-    'Create invoice',
-    'Search invoices...',
-    [
-      { label: 'Monthly revenue', value: '$84,240', detail: '+12.4% from last month' },
-      { label: 'Outstanding', value: '$6,320', detail: '8 open invoices' },
-      { label: 'Renewal rate', value: '96.2%', detail: '+1.8% this quarter' },
-    ],
-    ['Invoice', 'Organization', 'Amount'],
-    [
-      {
-        primary: 'INV-2048',
-        secondary: 'Harbor Property Group',
-        tertiary: '$4,800',
-        status: 'Paid',
-      },
-      { primary: 'INV-2047', secondary: 'Northstar Living', tertiary: '$2,400', status: 'Paid' },
-      { primary: 'INV-2046', secondary: 'Cedar & Stone', tertiary: '$620', status: 'Due' },
-    ],
-  ),
   properties: content(
     'Add property',
     'Search properties...',

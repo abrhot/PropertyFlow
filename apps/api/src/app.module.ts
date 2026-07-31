@@ -6,7 +6,6 @@ import { AppService } from './app.service';
 import { ApplicationsModule } from './applications/applications.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthorizationModule } from './authorization/authorization.module';
-import { BillingModule } from './billing/billing.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SettingsModule } from './settings/settings.module';
 import { AbilitiesGuard } from './common/guards/abilities.guard';
@@ -17,7 +16,6 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { LeasesModule } from './leases/leases.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { MessagesModule } from './messages/messages.module';
-import { OrganizationsModule } from './organizations/organizations.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PropertiesModule } from './properties/properties.module';
@@ -39,8 +37,6 @@ import { TenantsModule } from './tenants/tenants.module';
     ApplicationsModule,
     ReportsModule,
     MessagesModule,
-    OrganizationsModule,
-    BillingModule,
     DashboardModule,
     SettingsModule,
   ],

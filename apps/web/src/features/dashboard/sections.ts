@@ -1,12 +1,10 @@
 import type { AppSection } from '@propertyflow/constants';
 import {
   BarChart3,
-  Boxes,
   Building2,
   CircleDollarSign,
   ClipboardCheck,
   ClipboardList,
-  CreditCard,
   FileText,
   LayoutDashboard,
   MessageSquare,
@@ -29,18 +27,6 @@ export const SECTION_META: Record<AppSection, SectionMeta> = {
     description: 'Your overview',
     icon: LayoutDashboard,
     path: '/dashboard',
-  },
-  organizations: {
-    label: 'Organizations',
-    description: 'Manage tenant companies on the platform',
-    icon: Boxes,
-    path: '/dashboard/organizations',
-  },
-  billing: {
-    label: 'Billing',
-    description: 'Subscriptions & platform revenue',
-    icon: CreditCard,
-    path: '/dashboard/billing',
   },
   properties: {
     label: 'Properties',

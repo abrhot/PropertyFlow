@@ -11,7 +11,6 @@ import {
   MAINTENANCE_STATUSES,
   PAYMENT_STATUSES,
   PROPERTY_TYPES,
-  SUBSCRIPTION_TIERS,
   UNIT_STATUSES,
   WORK_ORDER_STATUSES,
 } from '@propertyflow/constants';
@@ -106,6 +105,7 @@ export const createPropertySchema = z.object({
       .max(MAX_YEAR_BUILT, 'Year built is in the future'),
   ),
   notes: optionalField(z.string().trim().max(2000)),
+  imageUrl: optionalField(z.string().trim().url('Enter a valid image URL').max(500)),
   ownerId: optionalField(z.string().uuid('Select a valid owner')),
 });
 export type CreatePropertyInput = z.infer<typeof createPropertySchema>;
@@ -420,22 +420,6 @@ export const listConversationsQuerySchema = z.object({
 export type ListConversationsQuery = z.infer<typeof listConversationsQuerySchema>;
 
 // ---- Platform administration ----
-
-export const updateOrganizationSchema = z
-  .object({
-    name: z.string().trim().min(2, 'Organization name is too short').max(120).optional(),
-    subscriptionTier: z.enum(SUBSCRIPTION_TIERS).optional(),
-    isActive: z.boolean().optional(),
-  })
-  .refine((value) => Object.values(value).some((field) => field !== undefined), {
-    message: 'Provide at least one field to update',
-  });
-export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>;
-
-export const listOrganizationsQuerySchema = z.object({
-  search: z.string().trim().max(120).optional(),
-});
-export type ListOrganizationsQuery = z.infer<typeof listOrganizationsQuerySchema>;
 
 // ---- Settings ----
 

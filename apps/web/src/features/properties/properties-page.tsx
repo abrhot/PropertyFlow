@@ -319,7 +319,26 @@ function PropertyCard({
   const canDelete = ability.can('delete', subject);
 
   return (
-    <Card className="flex flex-col transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated">
+    <Card className="flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated">
+      <Link
+        href={`/dashboard/properties/${property.id}`}
+        className="relative block aspect-[16/9] w-full overflow-hidden bg-muted"
+        aria-label={`View ${property.name}`}
+      >
+        {property.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={property.imageUrl}
+            alt={property.name}
+            className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/15 via-muted to-secondary/20">
+            <Building2 className="h-10 w-10 text-primary/40" aria-hidden="true" />
+          </div>
+        )}
+      </Link>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 space-y-1">

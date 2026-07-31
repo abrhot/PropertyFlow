@@ -26,45 +26,32 @@ function sections(...names: AppSection[]): AbilityRule[] {
 /** Granted to every authenticated user, regardless of role. */
 const BASE_RULES: AbilityRule[] = [
   { action: 'access', subject: 'dashboard' },
+  { action: 'access', subject: 'settings' },
   { action: 'read', subject: 'User', conditions: { id: ME } },
 ];
 
 export const DEFAULT_ABILITY_RULES: Record<UserRole, AbilityRule[]> = {
-  SUPER_ADMIN: [
-    ...BASE_RULES,
-    ...sections('organizations', 'billing', 'reports', 'settings'),
-    { action: 'manage', subject: 'all' },
-    {
-      action: 'manage',
-      subject: 'Invitation',
-      inverted: true,
-      reason: 'Invitations are managed by organization admins, not the platform admin.',
-    },
-    {
-      action: 'pay',
-      subject: 'Payment',
-      inverted: true,
-      reason: 'Platform admins never make tenant payments.',
-    },
-  ],
-
+  // Full company administrator: everything within their own organization,
+  // including staff, owners, invitations, and the organization profile.
   ORG_ADMIN: [
     ...BASE_RULES,
     ...sections(
       'properties',
       'leases',
+      'applications',
       'payments',
       'maintenance',
+      'work_orders',
       'tenants',
       'messages',
       'reports',
-      'settings',
     ),
     { action: 'manage', subject: 'Organization', conditions: { id: ORG } },
     { action: 'manage', subject: 'User', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'Invitation', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'Property', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'Lease', conditions: { organizationId: ORG } },
+    { action: 'manage', subject: 'Application', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'Payment', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'MaintenanceRequest', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'WorkOrder', conditions: { organizationId: ORG } },
@@ -72,48 +59,30 @@ export const DEFAULT_ABILITY_RULES: Record<UserRole, AbilityRule[]> = {
     { action: 'read', subject: 'Report', conditions: { organizationId: ORG } },
   ],
 
+  // Day-to-day operator: manages the portfolio and its people, but not the
+  // organization profile, staff accounts, or invitations.
   PROPERTY_MANAGER: [
     ...BASE_RULES,
-    ...sections('properties', 'leases', 'applications', 'maintenance', 'messages', 'reports'),
+    ...sections(
+      'properties',
+      'leases',
+      'applications',
+      'payments',
+      'maintenance',
+      'work_orders',
+      'tenants',
+      'messages',
+      'reports',
+    ),
     { action: 'manage', subject: 'Property', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'Lease', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'Application', conditions: { organizationId: ORG } },
+    { action: 'manage', subject: 'Payment', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'MaintenanceRequest', conditions: { organizationId: ORG } },
-    { action: 'assign', subject: 'WorkOrder', conditions: { organizationId: ORG } },
+    { action: 'manage', subject: 'WorkOrder', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'Message', conditions: { organizationId: ORG } },
     { action: 'read', subject: 'Report', conditions: { organizationId: ORG } },
-  ],
-
-  LEASING_AGENT: [
-    ...BASE_RULES,
-    ...sections('applications', 'leases', 'tenants'),
-    { action: 'manage', subject: 'Application', conditions: { organizationId: ORG } },
-    { action: 'create', subject: 'Lease', conditions: { organizationId: ORG } },
-    { action: 'read', subject: 'Lease', conditions: { organizationId: ORG } },
-    { action: 'update', subject: 'Lease', conditions: { organizationId: ORG } },
-    { action: 'read', subject: 'Property', conditions: { organizationId: ORG } },
-    { action: 'read', subject: 'User', conditions: { organizationId: ORG, role: 'TENANT' } },
-  ],
-
-  ACCOUNTANT: [
-    ...BASE_RULES,
-    ...sections('payments', 'reports'),
-    { action: 'manage', subject: 'Payment', conditions: { organizationId: ORG } },
-    { action: 'read', subject: 'Report', conditions: { organizationId: ORG } },
-    { action: 'read', subject: 'Property', conditions: { organizationId: ORG } },
-    { action: 'read', subject: 'Lease', conditions: { organizationId: ORG } },
-  ],
-
-  MAINTENANCE: [
-    ...BASE_RULES,
-    ...sections('work_orders'),
-    {
-      action: 'read',
-      subject: 'MaintenanceRequest',
-      conditions: { organizationId: ORG, assigneeId: ME },
-    },
-    { action: 'read', subject: 'WorkOrder', conditions: { organizationId: ORG, assigneeId: ME } },
-    { action: 'update', subject: 'WorkOrder', conditions: { organizationId: ORG, assigneeId: ME } },
+    { action: 'read', subject: 'User', conditions: { organizationId: ORG } },
   ],
 
   OWNER: [

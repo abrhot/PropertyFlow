@@ -133,7 +133,17 @@ function PropertyDetailContent({ propertyId }: { propertyId: string }) {
           </Link>
         </Button>
 
-        <Card>
+        <Card className="overflow-hidden">
+          {detail.imageUrl && (
+            <div className="relative aspect-[21/9] w-full overflow-hidden bg-muted">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={detail.imageUrl}
+                alt={detail.name}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          )}
           <CardHeader>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
               <div className="space-y-2">

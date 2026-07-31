@@ -13,12 +13,8 @@ datasource db {
 }
 
 enum UserRole {
-  SUPER_ADMIN
   ORG_ADMIN
   PROPERTY_MANAGER
-  LEASING_AGENT
-  ACCOUNTANT
-  MAINTENANCE
   OWNER
   TENANT
 }
@@ -155,7 +151,7 @@ model Organization {
 
 model User {
   id              String        @id @default(uuid())
-  /// Null for SUPER_ADMIN (platform-wide, not tied to an organization).
+  /// Nullable so an account can exist briefly before being attached to an org.
   organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId  String?
   email           String        @unique
@@ -256,6 +252,8 @@ model Property {
   country        String       @default("US")
   yearBuilt      Int?
   notes          String?
+  /// Optional cover photo (URL). Real uploads arrive with the media service.
+  imageUrl       String?
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt

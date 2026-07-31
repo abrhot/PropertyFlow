@@ -14,7 +14,6 @@ import type {
   ApplicationFormOptions,
   ApplicationListResponse,
   AuthResponse,
-  BillingOverviewResponse,
   NotificationPreferences,
   OrganizationProfile,
   SettingsResponse,
@@ -38,9 +37,6 @@ import type {
   ForgotPasswordRequest,
   Message,
   MessagingOptions,
-  OrganizationListResponse,
-  PlatformOrganization,
-  UpdateOrganizationRequest,
   InvitationPreview,
   InvitationTokenRequest,
   Lease,
@@ -522,26 +518,6 @@ export class ApiClient {
       method: 'POST',
       body: JSON.stringify(input),
     });
-  }
-
-  // ---- Platform administration ----
-
-  listOrganizations(params: { search?: string } = {}): Promise<OrganizationListResponse> {
-    const query = new URLSearchParams();
-    if (params.search) query.set('search', params.search);
-    const suffix = query.size ? `?${query.toString()}` : '';
-    return this.request(`/organizations${suffix}`, { method: 'GET' });
-  }
-
-  updateOrganization(id: string, input: UpdateOrganizationRequest): Promise<PlatformOrganization> {
-    return this.request(`/organizations/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      body: JSON.stringify(input),
-    });
-  }
-
-  getBillingOverview(): Promise<BillingOverviewResponse> {
-    return this.request('/billing/overview', { method: 'GET' });
   }
 
   // ---- Settings ----

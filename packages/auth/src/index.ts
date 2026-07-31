@@ -18,7 +18,7 @@ export * from './rules';
 export interface AccessTokenPayload {
   /** User id. */
   sub: string;
-  /** Organization id, or null for SUPER_ADMIN. */
+  /** Organization id. Null only for accounts not yet attached to an org. */
   orgId: string | null;
   role: UserRole;
   /** Token type discriminator. */
@@ -43,10 +43,9 @@ export function canAccess(role: UserRole, allowed: readonly UserRole[]): boolean
 
 /** @deprecated Prefer CASL checks plus organization-scoped database queries. */
 export function canAccessOrganization(
-  role: UserRole,
+  _role: UserRole,
   userOrgId: string | null,
   targetOrgId: string,
 ): boolean {
-  if (role === 'SUPER_ADMIN') return true;
   return userOrgId !== null && userOrgId === targetOrgId;
 }

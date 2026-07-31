@@ -46,6 +46,7 @@ const BLANK: CreatePropertyInput = {
   country: 'US',
   yearBuilt: undefined,
   notes: undefined,
+  imageUrl: undefined,
   ownerId: undefined,
 };
 
@@ -62,6 +63,7 @@ function toFormValues(property?: Property): CreatePropertyInput {
     country: property.country,
     yearBuilt: property.yearBuilt ?? undefined,
     notes: property.notes ?? undefined,
+    imageUrl: property.imageUrl ?? undefined,
     ownerId: property.ownerId ?? undefined,
   };
 }
@@ -234,6 +236,21 @@ export function PropertyFormDialog({ open, onOpenChange, property }: PropertyFor
             {errors.yearBuilt && (
               <p className="text-sm text-destructive">{errors.yearBuilt.message}</p>
             )}
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="property-image">Cover photo URL (optional)</Label>
+            <Input
+              id="property-image"
+              placeholder="https://images.unsplash.com/..."
+              {...register('imageUrl')}
+            />
+            {errors.imageUrl && (
+              <p className="text-sm text-destructive">{errors.imageUrl.message}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Paste a link to a photo. Direct uploads arrive with the media service.
+            </p>
           </div>
 
           <div className="space-y-2 sm:col-span-2">

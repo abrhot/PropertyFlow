@@ -8,12 +8,8 @@ const prisma = new PrismaClient();
 const PASSWORD = 'Password123';
 
 const USERS = [
-  ['superadmin@demo.test', 'Sam Super', 'SUPER_ADMIN', false],
   ['orgadmin@demo.test', 'Olivia Admin', 'ORG_ADMIN', true],
   ['manager@demo.test', 'Mia Manager', 'PROPERTY_MANAGER', true],
-  ['agent@demo.test', 'Alex Agent', 'LEASING_AGENT', true],
-  ['accountant@demo.test', 'Aria Accountant', 'ACCOUNTANT', true],
-  ['maintenance@demo.test', 'Marco Maintenance', 'MAINTENANCE', true],
   ['owner@demo.test', 'Nora Owner', 'OWNER', true],
   ['tenant@demo.test', 'Theo Tenant', 'TENANT', true],
 ];
@@ -29,6 +25,8 @@ const PORTFOLIO = [
     postalCode: '97205',
     yearBuilt: 2016,
     notes: 'Elevator building with covered parking and on-site laundry.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80',
     ownerEmail: 'owner@demo.test',
     units: [
       ['1A', 1, 1, 620, 145000, 'OCCUPIED'],
@@ -45,6 +43,8 @@ const PORTFOLIO = [
     state: 'OR',
     postalCode: '97005',
     yearBuilt: 2009,
+    imageUrl:
+      'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=1200&q=80',
     ownerEmail: 'owner@demo.test',
     units: [
       ['A', 3, 2.5, 1450, 269000, 'OCCUPIED'],
@@ -58,6 +58,8 @@ const PORTFOLIO = [
     city: 'Astoria',
     state: 'OR',
     postalCode: '97103',
+    imageUrl:
+      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
     // Deliberately unassigned, so the OWNER role cannot see it.
     ownerEmail: null,
     units: [
@@ -189,7 +191,8 @@ async function seedPayments(organizationId, usersByEmail) {
 
 async function seedMaintenance(organizationId, usersByEmail) {
   const tenant = usersByEmail.get('tenant@demo.test');
-  const technician = usersByEmail.get('maintenance@demo.test');
+  // Work orders are now handled by staff (manager/admin), not a maintenance role.
+  const technician = usersByEmail.get('manager@demo.test');
   if (!tenant || !technician) return 0;
   const lease = await prisma.lease.findFirst({
     where: { organizationId, tenantId: tenant.id },
@@ -279,42 +282,6 @@ async function seedConversations(organizationId, usersByEmail) {
   return conversation ? 1 : 0;
 }
 
-/**
- * Extra management companies so the SUPER_ADMIN organizations and billing views
- * have a realistic, multi-tenant portfolio (different plans and activity levels).
- */
-const PLATFORM_ORGS = [
-  { name: 'Harbor Property Group', slug: 'harbor-property-group', subscriptionTier: 'ENTERPRISE', isActive: true },
-  { name: 'Northstar Living', slug: 'northstar-living', subscriptionTier: 'STARTER', isActive: true },
-  { name: 'Cedar & Stone', slug: 'cedar-and-stone', subscriptionTier: 'TRIAL', isActive: true },
-  { name: 'Willow Residential', slug: 'willow-residential', subscriptionTier: 'GROWTH', isActive: false },
-];
-
-async function seedPlatformOrganizations(passwordHash) {
-  let created = 0;
-  for (const definition of PLATFORM_ORGS) {
-    const org = await prisma.organization.upsert({
-      where: { slug: definition.slug },
-      update: {},
-      create: definition,
-    });
-    // A single admin per org so the user counts are non-zero.
-    await prisma.user.upsert({
-      where: { email: `admin@${definition.slug}.test` },
-      update: {},
-      create: {
-        email: `admin@${definition.slug}.test`,
-        fullName: `${definition.name} Admin`,
-        role: 'ORG_ADMIN',
-        organizationId: org.id,
-        passwordHash,
-      },
-    });
-    created += 1;
-  }
-  return created;
-}
-
 async function seedApplications(organizationId) {
   if (await prisma.application.count({ where: { organizationId } })) return 0;
   const units = await prisma.unit.findMany({
@@ -371,7 +338,6 @@ async function main() {
   const createdMaintenance = await seedMaintenance(org.id, usersByEmail);
   const createdApplications = await seedApplications(org.id);
   const createdConversations = await seedConversations(org.id, usersByEmail);
-  const createdPlatformOrgs = await seedPlatformOrganizations(passwordHash);
 
   console.log(`\nSeeded organization "${org.name}" and ${USERS.length} users.`);
   console.log(
@@ -391,11 +357,6 @@ async function main() {
   );
   console.log(
     createdConversations ? `Added ${createdConversations} conversation.` : 'Conversations already present.',
-  );
-  console.log(
-    createdPlatformOrgs
-      ? `Ensured ${createdPlatformOrgs} additional platform organizations.`
-      : 'Platform organizations already present.',
   );
   console.log(`Password for every seeded user: ${PASSWORD}\n`);
   for (const [email, , role] of USERS) console.log(`  ${role.padEnd(18)} ${email}`);
