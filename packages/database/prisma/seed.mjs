@@ -10,6 +10,7 @@ const PASSWORD = 'Password123';
 const USERS = [
   ['orgadmin@demo.test', 'Olivia Admin', 'ORG_ADMIN', true],
   ['manager@demo.test', 'Mia Manager', 'PROPERTY_MANAGER', true],
+  ['maintenance@demo.test', 'Marco Maintenance', 'MAINTENANCE', true],
   ['owner@demo.test', 'Nora Owner', 'OWNER', true],
   ['tenant@demo.test', 'Theo Tenant', 'TENANT', true],
 ];
@@ -191,8 +192,7 @@ async function seedPayments(organizationId, usersByEmail) {
 
 async function seedMaintenance(organizationId, usersByEmail) {
   const tenant = usersByEmail.get('tenant@demo.test');
-  // Work orders are now handled by staff (manager/admin), not a maintenance role.
-  const technician = usersByEmail.get('manager@demo.test');
+  const technician = usersByEmail.get('maintenance@demo.test');
   if (!tenant || !technician) return 0;
   const lease = await prisma.lease.findFirst({
     where: { organizationId, tenantId: tenant.id },

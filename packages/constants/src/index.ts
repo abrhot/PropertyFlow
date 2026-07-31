@@ -10,6 +10,7 @@
 export const USER_ROLES = [
   'ORG_ADMIN', // Runs the management company: staff, properties, owners, finances, settings.
   'PROPERTY_MANAGER', // Day-to-day operations: properties, leases, applications, maintenance.
+  'MAINTENANCE', // Field maintenance division: works assigned work orders.
   'OWNER', // Property owner; views performance for owned properties.
   'TENANT', // Pays rent, submits requests, views lease.
 ] as const;
@@ -27,6 +28,7 @@ export const STAFF_ROLES = [
 export const INVITABLE_ROLES = [
   'ORG_ADMIN',
   'PROPERTY_MANAGER',
+  'MAINTENANCE',
   'OWNER',
   'TENANT',
 ] as const satisfies readonly UserRole[];
@@ -175,6 +177,7 @@ export const SESSION_HINT_COOKIE = 'pf_session';
 export const ROLE_LABELS: Record<UserRole, string> = {
   ORG_ADMIN: 'Organization Admin',
   PROPERTY_MANAGER: 'Property Manager',
+  MAINTENANCE: 'Maintenance / Technician',
   OWNER: 'Property Owner',
   TENANT: 'Tenant',
 };
@@ -184,6 +187,7 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
     'Runs the company: staff, properties, owners, leasing, finances, maintenance, and settings.',
   PROPERTY_MANAGER:
     'Day-to-day operations: properties, leases, applications, payments, and maintenance.',
+  MAINTENANCE: 'Works assigned work orders and updates their status from the field.',
   OWNER: 'Views performance, occupancy, and financials for owned properties.',
   TENANT: 'Pays rent, submits maintenance requests, and views the lease.',
 };
@@ -239,6 +243,7 @@ export const ROLE_SECTIONS: Record<UserRole, AppSection[]> = {
     'reports',
     'settings',
   ],
+  MAINTENANCE: ['dashboard', 'work_orders', 'settings'],
   OWNER: ['dashboard', 'properties', 'reports', 'settings'],
   TENANT: ['dashboard', 'my_lease', 'my_payments', 'my_requests', 'messages', 'settings'],
 };

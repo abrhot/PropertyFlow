@@ -4,6 +4,7 @@ $base = 'http://localhost:3001/api'
 $roles = [ordered]@{
   'ORG_ADMIN'        = 'orgadmin@demo.test'
   'PROPERTY_MANAGER' = 'manager@demo.test'
+  'MAINTENANCE'      = 'maintenance@demo.test'
   'OWNER'            = 'owner@demo.test'
   'TENANT'           = 'tenant@demo.test'
 }

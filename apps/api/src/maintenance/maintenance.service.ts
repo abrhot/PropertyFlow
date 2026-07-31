@@ -171,11 +171,7 @@ export class MaintenanceService {
         },
       }),
       this.db.user.findMany({
-        where: {
-          organizationId,
-          role: { in: ['ORG_ADMIN', 'PROPERTY_MANAGER'] },
-          isActive: true,
-        },
+        where: { organizationId, role: 'MAINTENANCE', isActive: true },
         select: { id: true, fullName: true, email: true },
       }),
     ]);
@@ -305,15 +301,10 @@ export class MaintenanceService {
       throw new ConflictException('Closed requests cannot be assigned');
     }
     const assignee = await this.db.user.findFirst({
-      where: {
-        id: input.assigneeId,
-        organizationId,
-        role: { in: ['ORG_ADMIN', 'PROPERTY_MANAGER'] },
-        isActive: true,
-      },
+      where: { id: input.assigneeId, organizationId, role: 'MAINTENANCE', isActive: true },
       select: { id: true },
     });
-    if (!assignee) throw new BadRequestException('Select an active staff member to assign');
+    if (!assignee) throw new BadRequestException('Select an active maintenance technician');
     const referenceCode = `WO-${Date.now().toString(36).slice(-6).toUpperCase()}`;
     const created = await this.db.$transaction(async (tx) => {
       const order = await tx.workOrder.create({

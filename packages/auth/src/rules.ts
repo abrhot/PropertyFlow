@@ -85,6 +85,20 @@ export const DEFAULT_ABILITY_RULES: Record<UserRole, AbilityRule[]> = {
     { action: 'read', subject: 'User', conditions: { organizationId: ORG } },
   ],
 
+  // Field maintenance division: only the work orders (and their source request)
+  // assigned to them, which they can read and progress from the field.
+  MAINTENANCE: [
+    ...BASE_RULES,
+    ...sections('work_orders'),
+    { action: 'read', subject: 'WorkOrder', conditions: { organizationId: ORG, assigneeId: ME } },
+    { action: 'update', subject: 'WorkOrder', conditions: { organizationId: ORG, assigneeId: ME } },
+    {
+      action: 'read',
+      subject: 'MaintenanceRequest',
+      conditions: { organizationId: ORG, assigneeId: ME },
+    },
+  ],
+
   OWNER: [
     ...BASE_RULES,
     ...sections('properties', 'reports'),

@@ -29,6 +29,7 @@ const DEMO_PASSWORD = 'Password123';
 const DEMO_ACCOUNTS: { role: UserRole; email: string }[] = [
   { role: 'ORG_ADMIN', email: 'orgadmin@demo.test' },
   { role: 'PROPERTY_MANAGER', email: 'manager@demo.test' },
+  { role: 'MAINTENANCE', email: 'maintenance@demo.test' },
   { role: 'OWNER', email: 'owner@demo.test' },
   { role: 'TENANT', email: 'tenant@demo.test' },
 ];

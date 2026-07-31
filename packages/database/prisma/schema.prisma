@@ -15,6 +15,7 @@ datasource db {
 enum UserRole {
   ORG_ADMIN
   PROPERTY_MANAGER
+  MAINTENANCE
   OWNER
   TENANT
 }
