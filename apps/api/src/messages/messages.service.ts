@@ -15,6 +15,7 @@ import type {
   ListConversationsQuery,
 } from '@propertyflow/validation';
 import { AbilityService } from '../authorization/ability.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const MESSAGE_SELECT = {
@@ -44,6 +45,7 @@ export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly abilities: AbilityService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async list(user: RequestUser, query: ListConversationsQuery): Promise<ConversationListResponse> {
@@ -75,7 +77,7 @@ export class MessagesService {
 
   async options(user: RequestUser): Promise<MessagingOptions> {
     const organizationId = requireOrg(user);
-    if (!this.isStaff(user, organizationId)) return { contacts: [] };
+    if (!this.isStaff(user)) return { contacts: [] };
     const tenants = await this.prisma.client.user.findMany({
       where: { organizationId, role: 'TENANT', isActive: true },
       select: { id: true, fullName: true, email: true },
@@ -100,7 +102,7 @@ export class MessagesService {
 
   async create(user: RequestUser, input: CreateConversationInput): Promise<ConversationDetail> {
     const organizationId = requireOrg(user);
-    const staff = this.isStaff(user, organizationId);
+    const staff = this.isStaff(user);
 
     let participantIds: string[];
     if (staff) {
@@ -133,6 +135,16 @@ export class MessagesService {
       },
       select: { ...CONVERSATION_SELECT, messages: { select: MESSAGE_SELECT, orderBy: { createdAt: 'asc' } } },
     });
+
+    await this.notifyMessageRecipients({
+      organizationId,
+      senderId: user.id,
+      senderIsStaff: staff,
+      participantIds,
+      subject: input.subject,
+      preview: input.body,
+    });
+
     return { ...toConversation(created), messages: created.messages.map(toMessage) };
   }
 
@@ -140,7 +152,7 @@ export class MessagesService {
     const organizationId = requireOrg(user);
     const conversation = await this.prisma.client.conversation.findFirst({
       where: { id, organizationId },
-      select: { id: true, participantIds: true },
+      select: { id: true, subject: true, participantIds: true },
     });
     if (!conversation) throw new NotFoundException('Conversation not found');
     this.assertAccess(user, organizationId, conversation.participantIds);
@@ -153,19 +165,97 @@ export class MessagesService {
       }),
       this.prisma.client.conversation.update({ where: { id }, data: { lastMessageAt: now } }),
     ]);
+
+    await this.notifyMessageRecipients({
+      organizationId,
+      senderId: user.id,
+      senderIsStaff: this.isStaff(user),
+      participantIds: conversation.participantIds,
+      subject: conversation.subject,
+      preview: input.body,
+    });
+
     return toMessage(message);
   }
 
-  /** True when the caller can see every conversation in the organization (staff). */
-  private isStaff(user: RequestUser, organizationId: string): boolean {
-    return this.abilities
-      .abilityForUser(user)
-      .can('read', resource('Message', { organizationId }));
+  /**
+   * Staff = org admin or property manager only. Maintenance / owner / tenant are
+   * never treated as messaging staff, so roles stay cleanly separated.
+   */
+  private isStaff(user: RequestUser): boolean {
+    return user.role === 'ORG_ADMIN' || user.role === 'PROPERTY_MANAGER';
+  }
+
+  /**
+   * Fan a message out to the people who should act on it:
+   * - Staff → notify the tenant participants only
+   * - Tenant → notify org admins + managers for their leased building
+   */
+  private async notifyMessageRecipients(args: {
+    organizationId: string;
+    senderId: string;
+    senderIsStaff: boolean;
+    participantIds: string[];
+    subject: string;
+    preview: string;
+  }): Promise<void> {
+    const body =
+      args.preview.length > 120 ? `${args.preview.slice(0, 117)}…` : args.preview;
+
+    if (args.senderIsStaff) {
+      const tenants = args.participantIds.filter((id) => id !== args.senderId);
+      await this.notifications.notifyUsers(args.organizationId, tenants, {
+        type: 'GENERAL',
+        title: `New message: ${args.subject}`,
+        body,
+        linkPath: '/dashboard/messages',
+      });
+      return;
+    }
+
+    const lease = await this.prisma.client.lease.findFirst({
+      where: {
+        organizationId: args.organizationId,
+        tenantId: args.senderId,
+        status: 'ACTIVE',
+      },
+      select: { unit: { select: { propertyId: true } } },
+    });
+    if (lease) {
+      await this.notifications.notifyPropertyStaff(
+        args.organizationId,
+        lease.unit.propertyId,
+        {
+          type: 'GENERAL',
+          title: `Resident message: ${args.subject}`,
+          body,
+          linkPath: '/dashboard/messages',
+        },
+        args.senderId,
+      );
+      return;
+    }
+
+    // No active lease — still reach org admins so the message isn't dropped.
+    const admins = await this.prisma.client.user.findMany({
+      where: { organizationId: args.organizationId, role: 'ORG_ADMIN', isActive: true },
+      select: { id: true },
+    });
+    await this.notifications.notifyUsers(
+      args.organizationId,
+      admins.map((admin) => admin.id),
+      {
+        type: 'GENERAL',
+        title: `Resident message: ${args.subject}`,
+        body,
+        linkPath: '/dashboard/messages',
+      },
+    );
   }
 
   /** Restricts non-staff callers to conversations they participate in. */
-  private scopeWhere(user: RequestUser, organizationId: string): Prisma.ConversationWhereInput {
-    return this.isStaff(user, organizationId) ? {} : { participantIds: { has: user.id } };
+  private scopeWhere(user: RequestUser, _organizationId: string): Prisma.ConversationWhereInput {
+    return this.isStaff(user) ? {} : { participantIds: { has: user.id } };
   }
 
   private assertAccess(user: RequestUser, organizationId: string, participantIds: string[]): void {

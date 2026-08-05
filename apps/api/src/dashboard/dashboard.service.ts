@@ -5,6 +5,7 @@ import type {
   DashboardTrendPoint,
   RequestUser,
 } from '@propertyflow/types';
+import { buildingScope } from '../authorization/building-scope';
 import { PrismaService } from '../prisma/prisma.service';
 
 const DAYS = 90;
@@ -28,8 +29,14 @@ export class DashboardService {
   private async portfolioSummary(user: RequestUser): Promise<DashboardSummaryResponse> {
     const organizationId = user.organizationId ?? '';
     const owner = user.role === 'OWNER';
-    const paymentWhere = { organizationId, ...(owner ? { ownerId: user.id } : {}) };
-    const propertyWhere = { organizationId, ...(owner ? { ownerId: user.id } : {}), isActive: true };
+    const scope = buildingScope(user);
+    const paymentWhere = { organizationId, ...(owner ? { ownerId: user.id } : {}), ...scope.payment };
+    const propertyWhere = {
+      organizationId,
+      ...(owner ? { ownerId: user.id } : {}),
+      ...scope.property,
+      isActive: true,
+    };
 
     const [payments, properties, activeLeases] = await Promise.all([
       this.prisma.client.payment.findMany({
@@ -41,7 +48,12 @@ export class DashboardService {
         select: { units: { select: { status: true } } },
       }),
       this.prisma.client.lease.count({
-        where: { organizationId, status: 'ACTIVE', ...(owner ? { unit: { property: { ownerId: user.id } } } : {}) },
+        where: {
+          organizationId,
+          status: 'ACTIVE',
+          ...(owner ? { unit: { property: { ownerId: user.id } } } : {}),
+          ...scope.lease,
+        },
       }),
     ]);
 

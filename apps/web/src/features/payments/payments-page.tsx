@@ -95,6 +95,10 @@ function PaymentsContent({ tenantView }: { tenantView: boolean }) {
       }),
     );
 
+  const nextDue = [...rows]
+    .filter((payment) => payment.status !== 'PAID' && payment.status !== 'REFUNDED')
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0];
+
   return (
     <DashboardShell title={tenantView ? 'Pay Rent' : 'Payments'}>
       <div className="mx-auto max-w-7xl space-y-6">
@@ -116,6 +120,40 @@ function PaymentsContent({ tenantView }: { tenantView: boolean }) {
             </Button>
           )}
         </div>
+
+        {tenantView && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  {nextDue ? 'Next rent due' : "You're all caught up"}
+                </p>
+                {nextDue ? (
+                  <>
+                    <p className="mt-1 text-3xl font-bold tracking-tight">
+                      {formatCents(nextDue.amountCents)}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {nextDue.description} · due {new Date(nextDue.dueDate).toLocaleDateString()}
+                      {' · '}
+                      {nextDue.unit.propertyName} · {nextDue.unit.label}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    No outstanding rent. Your next charge will appear here.
+                  </p>
+                )}
+              </div>
+              {nextDue && canPay(nextDue) && (
+                <Button size="lg" onClick={() => pay.mutate(nextDue.id)} disabled={pay.isPending}>
+                  {pay.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Pay {formatCents(nextDue.amountCents)}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <section className="grid gap-4 sm:grid-cols-3" aria-label="Payment summary">
           <SummaryCard

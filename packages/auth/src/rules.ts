@@ -33,18 +33,20 @@ const BASE_RULES: AbilityRule[] = [
 export const DEFAULT_ABILITY_RULES: Record<UserRole, AbilityRule[]> = {
   // Full company administrator: everything within their own organization,
   // including staff, owners, invitations, and the organization profile.
+  // Company-wide oversight: every operational area plus org analytics (Reports),
+  // staff, owners, and the organization profile. Work Orders is the technician's
+  // field inbox, so admins act on maintenance through the Maintenance queue.
   ORG_ADMIN: [
     ...BASE_RULES,
     ...sections(
       'properties',
-      'leases',
       'applications',
       'payments',
       'maintenance',
-      'work_orders',
       'tenants',
-      'messages',
       'reports',
+      'messages',
+      'team',
     ),
     { action: 'manage', subject: 'Organization', conditions: { id: ORG } },
     { action: 'manage', subject: 'User', conditions: { organizationId: ORG } },
@@ -61,18 +63,18 @@ export const DEFAULT_ABILITY_RULES: Record<UserRole, AbilityRule[]> = {
 
   // Day-to-day operator: manages the portfolio and its people, but not the
   // organization profile, staff accounts, or invitations.
+  // Day-to-day operator for the buildings they run. Same operational surface as
+  // the admin, minus org-wide analytics (Reports) and the technician inbox — a
+  // deliberately leaner, operations-focused navigation.
   PROPERTY_MANAGER: [
     ...BASE_RULES,
     ...sections(
       'properties',
-      'leases',
       'applications',
       'payments',
       'maintenance',
-      'work_orders',
       'tenants',
       'messages',
-      'reports',
     ),
     { action: 'manage', subject: 'Property', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'Lease', conditions: { organizationId: ORG } },
@@ -81,12 +83,15 @@ export const DEFAULT_ABILITY_RULES: Record<UserRole, AbilityRule[]> = {
     { action: 'manage', subject: 'MaintenanceRequest', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'WorkOrder', conditions: { organizationId: ORG } },
     { action: 'manage', subject: 'Message', conditions: { organizationId: ORG } },
-    { action: 'read', subject: 'Report', conditions: { organizationId: ORG } },
     { action: 'read', subject: 'User', conditions: { organizationId: ORG } },
   ],
 
   // Field maintenance division: only the work orders (and their source request)
   // assigned to them, which they can read and progress from the field.
+  // Field maintenance division: works the orders assigned to them and can log a
+  // new issue they discover on site. New reports still require manager/admin
+  // approval before they can be assigned — techs never create or assign work
+  // orders themselves.
   MAINTENANCE: [
     ...BASE_RULES,
     ...sections('work_orders'),
@@ -97,6 +102,7 @@ export const DEFAULT_ABILITY_RULES: Record<UserRole, AbilityRule[]> = {
       subject: 'MaintenanceRequest',
       conditions: { organizationId: ORG, assigneeId: ME },
     },
+    { action: 'create', subject: 'MaintenanceRequest', conditions: { organizationId: ORG } },
   ],
 
   OWNER: [

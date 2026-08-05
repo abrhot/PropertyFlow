@@ -14,8 +14,10 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { validateEnv } from './config/env.validation';
 import { InvitationsModule } from './invitations/invitations.module';
 import { LeasesModule } from './leases/leases.module';
+import { ListingsModule } from './listings/listings.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { MessagesModule } from './messages/messages.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PropertiesModule } from './properties/properties.module';
@@ -31,12 +33,14 @@ import { TenantsModule } from './tenants/tenants.module';
     InvitationsModule,
     PropertiesModule,
     LeasesModule,
+    ListingsModule,
     PaymentsModule,
     MaintenanceModule,
     TenantsModule,
     ApplicationsModule,
     ReportsModule,
     MessagesModule,
+    NotificationsModule,
     DashboardModule,
     SettingsModule,
   ],

@@ -6,10 +6,23 @@ import {
   MAINTENANCE_PRIORITY_LABELS,
   MAINTENANCE_STATUS_LABELS,
   type MaintenancePriority,
+  type MaintenanceStatus,
 } from '@propertyflow/constants';
 import type { MaintenanceRequest } from '@propertyflow/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ClipboardList, Loader2, Plus, Search, Wrench } from 'lucide-react';
+import {
+  AlertTriangle,
+  Check,
+  ClipboardList,
+  Loader2,
+  Plus,
+  Search,
+  ShieldCheck,
+  Wrench,
+  X,
+} from 'lucide-react';
+import type { ComponentProps } from 'react';
+import type { Badge as BadgeComponent } from '@/components/ui/badge';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -69,11 +82,9 @@ function MaintenanceContent({ tenantView }: { tenantView: boolean }) {
                 : 'Triage resident issues and assign field work.'}
             </p>
           </div>
-          {tenantView && (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4" /> Submit request
-            </Button>
-          )}
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" /> {tenantView ? 'Submit request' : 'New request'}
+          </Button>
         </div>
         <section className="grid gap-4 sm:grid-cols-3">
           <Metric label="Open" value={summary?.openCount} icon={ClipboardList} />
@@ -99,7 +110,7 @@ function MaintenanceContent({ tenantView }: { tenantView: boolean }) {
                     <Badge variant={request.priority === 'URGENT' ? 'warning' : 'secondary'}>
                       {MAINTENANCE_PRIORITY_LABELS[request.priority]}
                     </Badge>
-                    <Badge variant={request.status === 'COMPLETED' ? 'success' : 'outline'}>
+                    <Badge variant={statusVariant(request.status)}>
                       {MAINTENANCE_STATUS_LABELS[request.status]}
                     </Badge>
                   </div>
@@ -109,10 +120,8 @@ function MaintenanceContent({ tenantView }: { tenantView: boolean }) {
                   </p>
                   <p className="mt-2 line-clamp-2 text-sm">{request.description}</p>
                 </div>
-                {!tenantView && request.status === 'SUBMITTED' && (
-                  <Button variant="outline" onClick={() => setAssigning(request)}>
-                    Assign work
-                  </Button>
+                {!tenantView && (
+                  <StaffActions request={request} onAssign={() => setAssigning(request)} />
                 )}
               </CardContent>
             </Card>
@@ -130,6 +139,7 @@ function MaintenanceContent({ tenantView }: { tenantView: boolean }) {
         open={createOpen}
         onOpenChange={setCreateOpen}
         leases={options.data?.leases ?? []}
+        tenantView={tenantView}
       />
       <AssignDialog
         request={assigning}
@@ -144,10 +154,12 @@ function RequestDialog({
   open,
   onOpenChange,
   leases,
+  tenantView,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leases: Awaited<ReturnType<typeof api.listMaintenanceOptions>>['leases'];
+  tenantView: boolean;
 }) {
   const queryClient = useQueryClient();
   const [leaseId, setLeaseId] = useState('');
@@ -169,14 +181,18 @@ function RequestDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Submit maintenance request</DialogTitle>
-          <DialogDescription>Describe the issue clearly so the team can respond quickly.</DialogDescription>
+          <DialogTitle>{tenantView ? 'Submit maintenance request' : 'New maintenance request'}</DialogTitle>
+          <DialogDescription>
+            {tenantView
+              ? 'Describe the issue clearly so the team can respond quickly.'
+              : 'Log an issue for a unit. It enters the queue for approval and assignment.'}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Unit</Label>
             <Select value={leaseId} onValueChange={setLeaseId}>
-              <SelectTrigger><SelectValue placeholder="Select your unit" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={tenantView ? 'Select your unit' : 'Select a unit'} /></SelectTrigger>
               <SelectContent>
                 {leases.map((lease) => (
                   <SelectItem key={lease.id} value={lease.id}>
@@ -241,6 +257,83 @@ function AssignDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+type BadgeVariant = ComponentProps<typeof BadgeComponent>['variant'];
+
+function statusVariant(status: MaintenanceStatus): BadgeVariant {
+  if (status === 'VERIFIED' || status === 'COMPLETED') return 'success';
+  if (status === 'REJECTED' || status === 'CANCELLED') return 'secondary';
+  if (status === 'SUBMITTED' || status === 'AWAITING_VERIFICATION') return 'warning';
+  return 'outline';
+}
+
+/** Lifecycle controls shown to managers/admins for each request. */
+function StaffActions({
+  request,
+  onAssign,
+}: {
+  request: MaintenanceRequest;
+  onAssign: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const setStatus = useMutation({
+    mutationFn: (status: MaintenanceStatus) =>
+      api.updateMaintenanceRequest(request.id, { status }),
+    onSuccess: async (_data, status) => {
+      toast.success(
+        status === 'APPROVED'
+          ? 'Request approved'
+          : status === 'REJECTED'
+            ? 'Request declined'
+            : status === 'VERIFIED'
+              ? 'Repair verified and closed'
+              : 'Request updated',
+      );
+      await queryClient.invalidateQueries({ queryKey: maintenanceKeys.all });
+    },
+    onError: (error) =>
+      toast.error(error instanceof ApiError ? error.message : 'Unable to update request'),
+  });
+  const busy = setStatus.isPending;
+
+  if (request.status === 'SUBMITTED') {
+    return (
+      <div className="flex shrink-0 gap-2">
+        <Button size="sm" disabled={busy} onClick={() => setStatus.mutate('APPROVED')}>
+          <Check className="h-4 w-4" /> Approve
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => setStatus.mutate('REJECTED')}
+        >
+          <X className="h-4 w-4" /> Decline
+        </Button>
+      </div>
+    );
+  }
+  if (request.status === 'APPROVED') {
+    return (
+      <Button size="sm" className="shrink-0" onClick={onAssign}>
+        <Wrench className="h-4 w-4" /> Assign technician
+      </Button>
+    );
+  }
+  if (request.status === 'AWAITING_VERIFICATION') {
+    return (
+      <Button
+        size="sm"
+        className="shrink-0"
+        disabled={busy}
+        onClick={() => setStatus.mutate('VERIFIED')}
+      >
+        <ShieldCheck className="h-4 w-4" /> Verify &amp; close
+      </Button>
+    );
+  }
+  return null;
 }
 
 function Metric({ label, value, icon: Icon }: { label: string; value?: number; icon: typeof Wrench }) {

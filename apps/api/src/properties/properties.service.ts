@@ -8,6 +8,8 @@ import {
 import type { AppAbility } from '@propertyflow/auth';
 import { Prisma, type PrismaClient } from '@propertyflow/database';
 import type {
+  ManagerAssignmentsResponse,
+  ManagerSummary,
   Property,
   PropertyDetail,
   PropertyListResponse,
@@ -25,6 +27,7 @@ import type {
   UpdateUnitInput,
 } from '@propertyflow/validation';
 import { AbilityService } from '../authorization/ability.service';
+import { buildingScope } from '../authorization/building-scope';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   assertCanAccessProperty,
@@ -87,7 +90,7 @@ export class PropertiesService {
     const scope = propertyScopeFor(ability, 'read');
     if (!scope) return { properties: [], summary: emptySummary() };
 
-    const filters: Prisma.PropertyWhereInput[] = [scope];
+    const filters: Prisma.PropertyWhereInput[] = [scope, buildingScope(user).property];
     if (!query.includeInactive) filters.push({ isActive: true });
     if (query.type) filters.push({ type: query.type });
     if (query.search) {
@@ -126,6 +129,80 @@ export class PropertiesService {
     return toPropertyDetail(record);
   }
 
+  /** Admin view: every property manager and the buildings assigned to them. */
+  async listManagers(user: RequestUser): Promise<ManagerAssignmentsResponse> {
+    const organizationId = requireOrganization(user);
+    const [managers, properties] = await Promise.all([
+      this.db.user.findMany({
+        where: { organizationId, role: 'PROPERTY_MANAGER' },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          isActive: true,
+          managedProperties: { where: { organizationId }, select: { id: true } },
+        },
+        orderBy: { fullName: 'asc' },
+      }),
+      this.db.property.findMany({
+        where: { organizationId },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+    return {
+      managers: managers.map((manager) => ({
+        id: manager.id,
+        fullName: manager.fullName,
+        email: manager.email,
+        isActive: manager.isActive,
+        propertyIds: manager.managedProperties.map((property) => property.id),
+      })),
+      properties,
+    };
+  }
+
+  /** Admin action: set exactly which buildings a manager is responsible for. */
+  async setManagerProperties(
+    user: RequestUser,
+    managerId: string,
+    propertyIds: string[],
+  ): Promise<ManagerSummary> {
+    const organizationId = requireOrganization(user);
+    const manager = await this.db.user.findFirst({
+      where: { id: managerId, organizationId, role: 'PROPERTY_MANAGER' },
+      select: { id: true },
+    });
+    if (!manager) throw new NotFoundException('Property manager not found');
+
+    // Ignore ids outside the organization so a request can't reach across orgs.
+    const owned = propertyIds.length
+      ? await this.db.property.findMany({
+          where: { id: { in: propertyIds }, organizationId },
+          select: { id: true },
+        })
+      : [];
+
+    const updated = await this.db.user.update({
+      where: { id: managerId },
+      data: { managedProperties: { set: owned.map((property) => ({ id: property.id })) } },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        isActive: true,
+        managedProperties: { where: { organizationId }, select: { id: true } },
+      },
+    });
+    return {
+      id: updated.id,
+      fullName: updated.fullName,
+      email: updated.email,
+      isActive: updated.isActive,
+      propertyIds: updated.managedProperties.map((property) => property.id),
+    };
+  }
+
   async create(user: RequestUser, input: CreatePropertyInput): Promise<Property> {
     const ability = this.abilities.abilityForUser(user);
     const organizationId = requireOrganization(user);
@@ -136,6 +213,10 @@ export class PropertiesService {
       organizationId,
       ownerId,
     });
+
+    // A manager creating a building is automatically assigned to run it, so it
+    // stays inside their own building scope.
+    const assignToManager = buildingScope(user).restricted;
 
     const record = await this.db.property.create({
       data: {
@@ -152,6 +233,7 @@ export class PropertiesService {
         yearBuilt: input.yearBuilt ?? null,
         notes: input.notes ?? null,
         imageUrl: input.imageUrl ?? null,
+        ...(assignToManager ? { managers: { connect: { id: user.id } } } : {}),
       },
       select: PROPERTY_SELECT,
     });
@@ -270,7 +352,7 @@ export class PropertiesService {
     if (!scope) throw new NotFoundException('Property not found');
 
     const record = await this.db.property.findFirst({
-      where: { AND: [{ id }, scope] },
+      where: { AND: [{ id }, scope, buildingScope(user).property] },
       select: PROPERTY_SELECT,
     });
     if (!record || !canAccessProperty(ability, 'read', record)) {

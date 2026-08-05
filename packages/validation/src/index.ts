@@ -128,6 +128,12 @@ export const listPropertiesQuerySchema = z.object({
 });
 export type ListPropertiesQuery = z.infer<typeof listPropertiesQuerySchema>;
 
+/** Admin assigns the set of buildings a property manager is responsible for. */
+export const updateManagerPropertiesSchema = z.object({
+  propertyIds: z.array(z.string().uuid('Select valid buildings')).max(1000),
+});
+export type UpdateManagerPropertiesInput = z.infer<typeof updateManagerPropertiesSchema>;
+
 /** Rent is stored and transmitted in cents; the UI converts at the edge. */
 export const createUnitSchema = z.object({
   label: z.string().trim().min(1, 'Unit label is required').max(40),
@@ -351,6 +357,11 @@ export const updateWorkOrderSchema = z
     status: z.enum(WORK_ORDER_STATUSES).optional(),
     dueDate: z.coerce.date().nullable().optional(),
     notes: optionalField(z.string().trim().max(2000)),
+    completionNotes: optionalField(z.string().trim().max(2000)),
+    imageUrls: z
+      .array(z.string().trim().url('Enter a valid image URL'))
+      .max(8, 'Attach up to 8 photos')
+      .optional(),
   })
   .refine((value) => Object.values(value).some((field) => field !== undefined), {
     message: 'Provide at least one field to update',
@@ -371,6 +382,34 @@ export const listTenantsQuerySchema = z.object({
 });
 export type ListTenantsQuery = z.infer<typeof listTenantsQuerySchema>;
 
+/**
+ * Admin onboarding of a resident. A tenant is always created; passing `unitId`
+ * (with rent and a lease term) also places them on an active lease so they show
+ * up in their unit immediately.
+ */
+export const createTenantSchema = z
+  .object({
+    fullName: z.string().trim().min(2, 'Enter the resident’s name').max(120),
+    email: emailSchema,
+    unitId: optionalField(z.string().uuid('Select a unit')),
+    rentCents: z.coerce.number().int().min(0).max(100_000_000).optional(),
+    startDate: z.coerce.date().optional(),
+    endDate: z.coerce.date().optional(),
+  })
+  .refine((value) => !value.unitId || value.rentCents != null, {
+    message: 'Enter the monthly rent for the assigned unit',
+    path: ['rentCents'],
+  })
+  .refine((value) => !value.unitId || (value.startDate != null && value.endDate != null), {
+    message: 'Enter the lease start and end dates',
+    path: ['endDate'],
+  })
+  .refine((value) => !value.startDate || !value.endDate || value.endDate > value.startDate, {
+    message: 'End date must be after the start date',
+    path: ['endDate'],
+  });
+export type CreateTenantInput = z.infer<typeof createTenantSchema>;
+
 export const createApplicationSchema = z.object({
   unitId: z.string().uuid('Select a unit'),
   applicantName: z.string().trim().min(2).max(120),
@@ -381,6 +420,23 @@ export const createApplicationSchema = z.object({
   notes: optionalField(z.string().trim().max(2000)),
 });
 export type CreateApplicationInput = z.infer<typeof createApplicationSchema>;
+
+export const listPublicListingsQuerySchema = z.object({
+  search: z.string().trim().max(120).optional(),
+});
+export type ListPublicListingsQuery = z.infer<typeof listPublicListingsQuerySchema>;
+
+/** Prospect inquiry from the public Available Homes page (no auth). */
+export const publicInquirySchema = z.object({
+  unitId: z.string().uuid('Select a home'),
+  interest: z.enum(['RENT', 'BUY']),
+  applicantName: z.string().trim().min(2).max(120),
+  applicantEmail: emailSchema,
+  applicantPhone: optionalField(z.string().trim().max(40)),
+  desiredMoveIn: optionalField(z.coerce.date()),
+  notes: optionalField(z.string().trim().max(2000)),
+});
+export type PublicInquiryInput = z.infer<typeof publicInquirySchema>;
 
 export const updateApplicationSchema = z
   .object({

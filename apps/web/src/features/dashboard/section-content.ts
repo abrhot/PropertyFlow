@@ -378,6 +378,36 @@ export const SECTION_CONTENT: Record<Section, SectionContent> = {
       },
     ],
   ),
+  team: content(
+    'Invite member',
+    'Search team members...',
+    [
+      { label: 'Team members', value: '18', detail: '3 administrators' },
+      { label: 'Managers', value: '9', detail: 'Assigned to buildings' },
+      { label: 'Pending invites', value: '2', detail: 'Awaiting acceptance' },
+    ],
+    ['Member', 'Role', 'Building access'],
+    [
+      {
+        primary: 'Alex Manager',
+        secondary: 'Property manager',
+        tertiary: 'The Meridian, Cedar Grove',
+        status: 'Active',
+      },
+      {
+        primary: 'Jordan Lee',
+        secondary: 'Maintenance',
+        tertiary: 'All buildings',
+        status: 'Active',
+      },
+      {
+        primary: 'sam@company.com',
+        secondary: 'Property manager',
+        tertiary: 'Parkside Lofts',
+        status: 'Invited',
+      },
+    ],
+  ),
   settings: content(
     'Save changes',
     'Search settings...',

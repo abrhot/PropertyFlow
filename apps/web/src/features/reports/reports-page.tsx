@@ -14,9 +14,11 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowDownToLine, ArrowUpDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartContainer, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Input } from '@/components/ui/input';
 import { RequireAbility } from '@/features/auth/require-ability';
 import { RequireAuth } from '@/features/auth/require-auth';
@@ -24,6 +26,47 @@ import { DashboardShell } from '@/features/dashboard/dashboard-shell';
 import { TrendChart } from '@/features/dashboard/trend-chart';
 import { formatCents } from '@/features/properties/format';
 import { api } from '@/lib/api';
+
+const occupancyChartConfig = {
+  occupancy: { label: 'Occupancy', color: 'hsl(var(--primary))' },
+} satisfies ChartConfig;
+
+function OccupancyChart({ data }: { data: { property: string; occupancy: number }[] }) {
+  if (!data.length) {
+    return (
+      <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+        No buildings to report on yet.
+      </div>
+    );
+  }
+  return (
+    <ChartContainer config={occupancyChartConfig} className="aspect-auto h-[280px] w-full">
+      <BarChart data={data} margin={{ left: -12, right: 8, top: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="property"
+          axisLine={false}
+          tickLine={false}
+          tickMargin={8}
+          interval={0}
+          tickFormatter={(value: string) => (value.length > 10 ? `${value.slice(0, 10)}…` : value)}
+        />
+        <YAxis
+          axisLine={false}
+          tickLine={false}
+          width={40}
+          domain={[0, 100]}
+          tickFormatter={(value) => `${value}%`}
+        />
+        <Tooltip
+          cursor={false}
+          content={<ChartTooltipContent valueFormatter={(value) => `${value}%`} />}
+        />
+        <Bar dataKey="occupancy" fill="var(--color-occupancy)" radius={[6, 6, 0, 0]} />
+      </BarChart>
+    </ChartContainer>
+  );
+}
 
 interface ReportRow {
   id: string;
@@ -121,26 +164,37 @@ function ReportsContent() {
           ))}
         </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Cash flow</CardTitle>
-            <CardDescription>
-              Collected and outstanding rent over the last six months.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <TrendChart
-              data={(dashboard.data?.cashFlow ?? []).map((point) => ({
-                x: point.month,
-                primary: point.collected,
-                secondary: point.outstanding,
-              }))}
-              primaryLabel="Collected"
-              secondaryLabel="Outstanding"
-              className="h-[320px]"
-            />
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Cash flow</CardTitle>
+              <CardDescription>
+                Collected and outstanding rent over the last six months.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TrendChart
+                data={(dashboard.data?.cashFlow ?? []).map((point) => ({
+                  x: point.month,
+                  primary: point.collected,
+                  secondary: point.outstanding,
+                }))}
+                primaryLabel="Collected"
+                secondaryLabel="Outstanding"
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Occupancy by building</CardTitle>
+              <CardDescription>Share of occupied units across your portfolio.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <OccupancyChart data={dashboard.data?.occupancy ?? []} />
+            </CardContent>
+          </Card>
+        </div>
 
         <Card>
           <CardHeader className="gap-4 sm:flex-row sm:items-end sm:justify-between sm:space-y-0">

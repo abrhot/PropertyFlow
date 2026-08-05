@@ -48,6 +48,11 @@ import type {
   MaintenanceRequest,
   MaintenanceRequestListResponse,
   MaintenanceStatus,
+  ManagerAssignmentsResponse,
+  ManagerSummary,
+  AppNotification,
+  NotificationListResponse,
+  UnreadCountResponse,
   Payment,
   PaymentFormOptions,
   PaymentListResponse,
@@ -64,6 +69,11 @@ import type {
   RentalApplication,
   ResetPasswordRequest,
   SessionResponse,
+  CreateTenantRequest,
+  CreateTenantResponse,
+  PublicInquiryRequest,
+  PublicInquiryResponse,
+  PublicListingsResponse,
   TenantDirectoryResponse,
   Unit,
   UpdateLeaseRequest,
@@ -302,6 +312,19 @@ export class ApiClient {
     return this.request('/properties/owners', { method: 'GET' });
   }
 
+  /** Admin-only: property managers and the buildings assigned to each. */
+  listManagerAssignments(): Promise<ManagerAssignmentsResponse> {
+    return this.request('/properties/managers', { method: 'GET' });
+  }
+
+  /** Admin-only: set exactly which buildings a manager is responsible for. */
+  setManagerProperties(managerId: string, propertyIds: string[]): Promise<ManagerSummary> {
+    return this.request(`/properties/managers/${encodeURIComponent(managerId)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ propertyIds }),
+    });
+  }
+
   getProperty(id: string): Promise<PropertyDetail> {
     return this.request(`/properties/${encodeURIComponent(id)}`, { method: 'GET' });
   }
@@ -456,12 +479,34 @@ export class ApiClient {
     });
   }
 
+  // ---- Notifications ----
+
+  listNotifications(): Promise<NotificationListResponse> {
+    return this.request('/notifications', { method: 'GET' });
+  }
+
+  getUnreadNotificationCount(): Promise<UnreadCountResponse> {
+    return this.request('/notifications/unread-count', { method: 'GET' });
+  }
+
+  markNotificationRead(id: string): Promise<AppNotification> {
+    return this.request(`/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH' });
+  }
+
+  markAllNotificationsRead(): Promise<UnreadCountResponse> {
+    return this.request('/notifications/read-all', { method: 'POST' });
+  }
+
   listTenants(params: ListTenantsParams = {}): Promise<TenantDirectoryResponse> {
     const query = new URLSearchParams();
     if (params.search) query.set('search', params.search);
     if (params.includeInactive) query.set('includeInactive', 'true');
     const suffix = query.size ? `?${query.toString()}` : '';
     return this.request(`/tenants${suffix}`, { method: 'GET' });
+  }
+
+  createTenant(input: CreateTenantRequest): Promise<CreateTenantResponse> {
+    return this.request('/tenants', { method: 'POST', body: JSON.stringify(input) });
   }
 
   listApplications(params: ListApplicationsParams = {}): Promise<ApplicationListResponse> {
@@ -482,6 +527,19 @@ export class ApiClient {
 
   updateApplication(id: string, input: UpdateApplicationRequest): Promise<RentalApplication> {
     return this.request(`/applications/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(input) });
+  }
+
+  /** Public — vacant homes anyone can browse before signing in. */
+  listPublicListings(params: { search?: string } = {}): Promise<PublicListingsResponse> {
+    const query = new URLSearchParams();
+    if (params.search) query.set('search', params.search);
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return this.request(`/listings${suffix}`, { method: 'GET' });
+  }
+
+  /** Public — submit a rent or buy inquiry that lands in the admin Inquiries inbox. */
+  submitPublicInquiry(input: PublicInquiryRequest): Promise<PublicInquiryResponse> {
+    return this.request('/listings/inquire', { method: 'POST', body: JSON.stringify(input) });
   }
 
   getReportDashboard(): Promise<ReportDashboardResponse> {

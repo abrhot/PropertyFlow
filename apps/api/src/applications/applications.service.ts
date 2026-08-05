@@ -13,6 +13,7 @@ import type {
   UpdateApplicationInput,
 } from '@propertyflow/validation';
 import { AbilityService } from '../authorization/ability.service';
+import { buildingScope } from '../authorization/building-scope';
 import { PrismaService } from '../prisma/prisma.service';
 
 const SELECT = {
@@ -34,6 +35,7 @@ export class ApplicationsService {
     const records = await this.prisma.client.application.findMany({
       where: {
         organizationId,
+        ...buildingScope(user).application,
         ...(query.status ? { status: query.status } : {}),
         ...(contains ? { OR: [{ applicantName: contains }, { applicantEmail: contains }, { unit: { property: { name: contains } } }] } : {}),
       },
@@ -68,8 +70,8 @@ export class ApplicationsService {
   async create(user: RequestUser, input: CreateApplicationInput): Promise<RentalApplication> {
     const organizationId = requireOrg(user);
     const ability = this.abilities.abilityForUser(user);
-    const unit = await this.prisma.client.unit.findFirst({ where: { id: input.unitId, property: { organizationId } }, select: { id: true } });
-    if (!unit) throw new BadRequestException('Select a unit from your organization');
+    const unit = await this.prisma.client.unit.findFirst({ where: { id: input.unitId, property: { organizationId }, ...buildingScope(user).unit }, select: { id: true } });
+    if (!unit) throw new BadRequestException('Select a unit from a building you manage');
     if (!ability.can('create', resource('Application', { organizationId }))) throw new ForbiddenException();
     return toApplication(await this.prisma.client.application.create({
       data: { ...input, organizationId, desiredMoveIn: input.desiredMoveIn ?? null, applicantPhone: input.applicantPhone ?? null, notes: input.notes ?? null },
@@ -80,7 +82,7 @@ export class ApplicationsService {
   async update(user: RequestUser, id: string, input: UpdateApplicationInput): Promise<RentalApplication> {
     const organizationId = requireOrg(user);
     const ability = this.abilities.abilityForUser(user);
-    const record = await this.prisma.client.application.findFirst({ where: { id, organizationId }, select: SELECT });
+    const record = await this.prisma.client.application.findFirst({ where: { id, organizationId, ...buildingScope(user).application }, select: SELECT });
     if (!record || !ability.can('update', resource('Application', { id, organizationId }))) throw new NotFoundException('Application not found');
     return toApplication(await this.prisma.client.application.update({ where: { id }, data: input, select: SELECT }));
   }

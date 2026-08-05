@@ -20,6 +20,7 @@ import type {
   UpdateLeaseInput,
 } from '@propertyflow/validation';
 import { AbilityService } from '../authorization/ability.service';
+import { buildingScope } from '../authorization/building-scope';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   assertCanAccessLease,
@@ -69,7 +70,7 @@ export class LeasesService {
     const scope = leaseScopeFor(ability, 'read');
     if (!scope) return { leases: [], summary: emptySummary() };
 
-    const filters: Prisma.LeaseWhereInput[] = [scope];
+    const filters: Prisma.LeaseWhereInput[] = [scope, buildingScope(user).lease];
     if (query.status) filters.push({ status: query.status });
     if (query.unitId) filters.push({ unitId: query.unitId });
     if (query.tenantId) filters.push({ tenantId: query.tenantId });
@@ -136,7 +137,7 @@ export class LeasesService {
     const ability = this.abilities.abilityForUser(user);
     const organizationId = requireOrganization(user);
 
-    const unit = await this.loadUnit(organizationId, input.unitId);
+    const unit = await this.loadUnit(user, organizationId, input.unitId);
     await this.assertTenant(organizationId, input.tenantId);
 
     const status = input.status ?? 'DRAFT';
@@ -239,7 +240,7 @@ export class LeasesService {
     if (!scope) throw new NotFoundException('Lease not found');
 
     const record = await this.db.lease.findFirst({
-      where: { AND: [{ id }, scope] },
+      where: { AND: [{ id }, scope, buildingScope(user).lease] },
       select: LEASE_SELECT,
     });
     if (!record || !canAccessLease(ability, 'read', identityOf(record))) {
@@ -249,12 +250,12 @@ export class LeasesService {
     return { ability, record };
   }
 
-  private async loadUnit(organizationId: string, unitId: string) {
+  private async loadUnit(user: RequestUser, organizationId: string, unitId: string) {
     const unit = await this.db.unit.findFirst({
-      where: { id: unitId, property: { organizationId } },
+      where: { id: unitId, property: { organizationId }, ...buildingScope(user).unit },
       select: { id: true, property: { select: { ownerId: true } } },
     });
-    if (!unit) throw new BadRequestException('Select a unit from your own organization');
+    if (!unit) throw new BadRequestException('Select a unit from a building you manage');
     return unit;
   }
 

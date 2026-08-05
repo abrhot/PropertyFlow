@@ -68,10 +68,26 @@ enum MaintenancePriority {
 
 enum MaintenanceRequestStatus {
   SUBMITTED
+  APPROVED
+  REJECTED
   ASSIGNED
   IN_PROGRESS
+  AWAITING_VERIFICATION
+  VERIFIED
   COMPLETED
   CANCELLED
+}
+
+enum NotificationType {
+  MAINTENANCE_SUBMITTED
+  MAINTENANCE_APPROVED
+  MAINTENANCE_REJECTED
+  MAINTENANCE_ASSIGNED
+  MAINTENANCE_COMPLETED
+  MAINTENANCE_VERIFIED
+  PAYMENT_DUE
+  PAYMENT_RECEIVED
+  GENERAL
 }
 
 enum WorkOrderStatus {
@@ -148,6 +164,7 @@ model Organization {
   applications        Application[]
   conversations       Conversation[]
   messages            Message[]
+  notifications       Notification[]
 }
 
 model User {
@@ -174,6 +191,8 @@ model User {
   passwordResetTokens          PasswordResetToken[]
   invitationsSent              OrganizationInvitation[] @relation("InvitationsSent")
   propertiesOwned              Property[]               @relation("PropertiesOwned")
+  /// Buildings a PROPERTY_MANAGER is assigned to run. Empty for other roles.
+  managedProperties            Property[]               @relation("PropertyManagers")
   leasesHeld                   Lease[]                  @relation("LeasesHeld")
   paymentsMade                 Payment[]                @relation("PaymentsMade")
   paymentsOwned                Payment[]                @relation("PaymentsOwned")
@@ -182,8 +201,32 @@ model User {
   maintenanceRequestsOwned     MaintenanceRequest[]     @relation("MaintenanceRequestsOwned")
   workOrdersAssigned           WorkOrder[]              @relation("WorkOrdersAssigned")
   messagesSent                 Message[]                @relation("MessagesSent")
+  notifications                Notification[]
 
   @@index([organizationId])
+}
+
+/// An in-app notification for a single recipient. Created by the API whenever a
+/// meaningful event happens (a maintenance request is submitted, approved,
+/// assigned, completed, or verified; a payment is due or received). The web app
+/// polls the unread count to drive the header bell.
+model Notification {
+  id             String           @id @default(uuid())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  type           NotificationType
+  title          String
+  body           String
+  /// Optional in-app path the notification links to, e.g. "/dashboard/maintenance".
+  linkPath       String?
+  isRead         Boolean          @default(false)
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }
 
 /// Server-side record of an issued refresh token (rotation + revocation).
@@ -259,7 +302,9 @@ model Property {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  units Unit[]
+  units    Unit[]
+  /// Property managers assigned to run this building (many-to-many).
+  managers User[] @relation("PropertyManagers")
 
   @@index([organizationId])
   @@index([organizationId, ownerId])
@@ -395,6 +440,10 @@ model WorkOrder {
   startedAt            DateTime?
   completedAt          DateTime?
   notes                String?
+  /// Notes the technician records when marking the work complete.
+  completionNotes      String?
+  /// Photos the technician attaches as proof of completion (image URLs).
+  imageUrls            String[]           @default([])
   referenceCode        String             @unique
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt

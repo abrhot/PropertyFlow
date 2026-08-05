@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Settings,
+  ShieldCheck,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -41,8 +42,8 @@ export const SECTION_META: Record<AppSection, SectionMeta> = {
     path: '/dashboard/leases',
   },
   applications: {
-    label: 'Applications',
-    description: 'Listings, applicants & screening',
+    label: 'Inquiries',
+    description: 'Rent & buy requests from prospects',
     icon: ClipboardList,
     path: '/dashboard/applications',
   },
@@ -99,6 +100,12 @@ export const SECTION_META: Record<AppSection, SectionMeta> = {
     description: 'Submit & track maintenance',
     icon: Wrench,
     path: '/dashboard/my-requests',
+  },
+  team: {
+    label: 'Team',
+    description: 'Staff, roles & building access',
+    icon: ShieldCheck,
+    path: '/dashboard/team',
   },
   settings: {
     label: 'Settings',

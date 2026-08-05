@@ -7,9 +7,12 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import type {
+  ManagerAssignmentsResponse,
+  ManagerSummary,
   Property,
   PropertyDetail,
   PropertyListResponse,
@@ -21,11 +24,13 @@ import {
   createPropertySchema,
   createUnitSchema,
   listPropertiesQuerySchema,
+  updateManagerPropertiesSchema,
   updatePropertySchema,
   updateUnitSchema,
   type CreatePropertyInput,
   type CreateUnitInput,
   type ListPropertiesQuery,
+  type UpdateManagerPropertiesInput,
   type UpdatePropertyInput,
   type UpdateUnitInput,
 } from '@propertyflow/validation';
@@ -57,6 +62,23 @@ export class PropertiesController {
   @CheckAbility({ action: 'update', subject: 'Property' })
   listOwners(@CurrentUser() user: RequestUser): Promise<PropertyOwnerSummary[]> {
     return this.properties.listAssignableOwners(user);
+  }
+
+  /** Admin-only: manage which buildings each property manager runs. */
+  @Get('managers')
+  @CheckAbility({ action: 'manage', subject: 'User' })
+  listManagers(@CurrentUser() user: RequestUser): Promise<ManagerAssignmentsResponse> {
+    return this.properties.listManagers(user);
+  }
+
+  @Put('managers/:userId')
+  @CheckAbility({ action: 'manage', subject: 'User' })
+  setManagerProperties(
+    @CurrentUser() user: RequestUser,
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+    @Body(new ZodValidationPipe(updateManagerPropertiesSchema)) input: UpdateManagerPropertiesInput,
+  ): Promise<ManagerSummary> {
+    return this.properties.setManagerProperties(user, userId, input.propertyIds);
   }
 
   @Get(':id')

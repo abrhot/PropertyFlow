@@ -3,7 +3,7 @@
 // and cache static assets — without ever caching API traffic or authenticated
 // HTML (navigations are always network-first).
 
-const CACHE = 'propertyflow-v1';
+const CACHE = 'propertyflow-v2';
 const OFFLINE_URL = '/offline';
 const PRECACHE = [OFFLINE_URL];
 
@@ -41,11 +41,35 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: stale-while-revalidate.
+  // Application code (Next.js build output, scripts, styles): network-first so a
+  // fresh deploy never gets shadowed by a stale, hashed chunk from an older
+  // build (the usual source of ChunkLoadError / client-side exceptions). We fall
+  // back to cache only when offline.
+  const isAppCode =
+    url.pathname.startsWith('/_next/') ||
+    request.destination === 'script' ||
+    request.destination === 'style';
+
+  if (isAppCode) {
+    event.respondWith(
+      caches.open(CACHE).then(async (cache) => {
+        try {
+          const response = await fetch(request);
+          if (response && response.ok) cache.put(request, response.clone());
+          return response;
+        } catch {
+          const cached = await cache.match(request);
+          if (cached) return cached;
+          throw new Error('offline and not cached');
+        }
+      }),
+    );
+    return;
+  }
+
+  // Images, fonts, and icons rarely change: stale-while-revalidate for speed.
   const cacheable =
-    url.pathname.startsWith('/_next/static') ||
-    url.pathname.startsWith('/icons') ||
-    ['style', 'script', 'image', 'font'].includes(request.destination);
+    url.pathname.startsWith('/icons') || ['image', 'font'].includes(request.destination);
 
   if (cacheable) {
     event.respondWith(

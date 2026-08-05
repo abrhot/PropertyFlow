@@ -22,9 +22,22 @@ import type {
   UpdateMaintenanceRequestInput,
   UpdateWorkOrderInput,
 } from '@propertyflow/validation';
+import { CLOSED_MAINTENANCE_STATUSES } from '@propertyflow/constants';
 import { AbilityService } from '../authorization/ability.service';
+import { buildingScope } from '../authorization/building-scope';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertAccess, canAccess, scopeFor, type MaintenanceIdentity } from './maintenance-access';
+
+const CLOSED = new Set<string>(CLOSED_MAINTENANCE_STATUSES);
+
+/** Request status that mirrors a given work-order status. */
+const WORK_ORDER_TO_REQUEST_STATUS = {
+  ASSIGNED: 'ASSIGNED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'AWAITING_VERIFICATION',
+  CANCELLED: 'CANCELLED',
+} as const;
 
 const REQUEST_SELECT = {
   id: true,
@@ -66,6 +79,8 @@ const WORK_ORDER_SELECT = {
   startedAt: true,
   completedAt: true,
   notes: true,
+  completionNotes: true,
+  imageUrls: true,
   referenceCode: true,
   createdAt: true,
   updatedAt: true,
@@ -95,6 +110,7 @@ export class MaintenanceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly abilities: AbilityService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private get db(): PrismaClient {
@@ -110,6 +126,7 @@ export class MaintenanceService {
     if (!scope) return { requests: [], summary: emptyRequestSummary() };
     const filters: Prisma.MaintenanceRequestWhereInput[] = [
       scope as Prisma.MaintenanceRequestWhereInput,
+      buildingScope(user).maintenanceRequest,
     ];
     if (query.status) filters.push({ status: query.status });
     if (query.priority) filters.push({ priority: query.priority });
@@ -137,12 +154,10 @@ export class MaintenanceService {
       requests,
       summary: {
         requestCount: requests.length,
-        openCount: requests.filter((request) => !['COMPLETED', 'CANCELLED'].includes(request.status))
-          .length,
+        openCount: requests.filter((request) => !CLOSED.has(request.status)).length,
         inProgressCount: requests.filter((request) => request.status === 'IN_PROGRESS').length,
         urgentCount: requests.filter(
-          (request) =>
-            request.priority === 'URGENT' && !['COMPLETED', 'CANCELLED'].includes(request.status),
+          (request) => request.priority === 'URGENT' && !CLOSED.has(request.status),
         ).length,
       },
     };
@@ -204,6 +219,7 @@ export class MaintenanceService {
         where: {
           id: input.leaseId,
           organizationId,
+          ...buildingScope(user).lease,
           ...(user.role === 'TENANT' ? { tenantId: user.id, status: 'ACTIVE' } : {}),
         },
         select: {
@@ -216,7 +232,12 @@ export class MaintenanceService {
     }
     if (!lease && input.unitId && input.tenantId && user.role !== 'TENANT') {
       lease = await this.db.lease.findFirst({
-        where: { organizationId, unitId: input.unitId, tenantId: input.tenantId },
+        where: {
+          organizationId,
+          unitId: input.unitId,
+          tenantId: input.tenantId,
+          ...buildingScope(user).lease,
+        },
         select: {
           id: true,
           tenantId: true,
@@ -247,6 +268,17 @@ export class MaintenanceService {
       },
       select: REQUEST_SELECT,
     });
+    await this.notifications.notifyPropertyStaff(
+      organizationId,
+      created.unit.property.id,
+      {
+        type: 'MAINTENANCE_SUBMITTED',
+        title: 'New maintenance request',
+        body: `${created.tenant.fullName} reported "${created.title}" at ${created.unit.property.name} · ${created.unit.label}.`,
+        linkPath: '/dashboard/maintenance',
+      },
+      user.id,
+    );
     return toRequest(created);
   }
 
@@ -256,7 +288,7 @@ export class MaintenanceService {
     input: UpdateMaintenanceRequestInput,
   ): Promise<MaintenanceRequest> {
     const ability = this.abilities.abilityForUser(user);
-    const record = await this.loadRequest(ability, id);
+    const record = await this.loadRequest(user, ability, id);
     assertAccess(ability, 'update', 'MaintenanceRequest', identityOf(record));
     if (user.role === 'TENANT') {
       if (record.status !== 'SUBMITTED') {
@@ -273,20 +305,71 @@ export class MaintenanceService {
         description: input.description,
         priority: input.priority,
         status: input.status,
-        completedAt: input.status === 'COMPLETED' ? new Date() : undefined,
+        completedAt:
+          input.status === 'COMPLETED' || input.status === 'VERIFIED' ? new Date() : undefined,
         cancelledAt: input.status === 'CANCELLED' ? new Date() : undefined,
       },
       select: REQUEST_SELECT,
     });
+    if (input.status && user.role !== 'TENANT') {
+      await this.notifyStatusChange(updated, input.status);
+    }
     return toRequest(updated);
+  }
+
+  /** Notify the tenant (and technician) when staff advance a request. */
+  private async notifyStatusChange(record: RequestRecord, status: string): Promise<void> {
+    const place = `${record.unit.property.name} · ${record.unit.label}`;
+    if (status === 'APPROVED') {
+      await this.notifications.notifyUser(record.organizationId, record.tenantId, {
+        type: 'MAINTENANCE_APPROVED',
+        title: 'Request approved',
+        body: `Your request "${record.title}" was approved and will be scheduled soon.`,
+        linkPath: '/dashboard/my-requests',
+      });
+    } else if (status === 'REJECTED') {
+      await this.notifications.notifyUser(record.organizationId, record.tenantId, {
+        type: 'MAINTENANCE_REJECTED',
+        title: 'Request declined',
+        body: `Your request "${record.title}" was declined. Contact the office for details.`,
+        linkPath: '/dashboard/my-requests',
+      });
+    } else if (status === 'VERIFIED') {
+      await this.notifications.notifyUser(record.organizationId, record.tenantId, {
+        type: 'MAINTENANCE_VERIFIED',
+        title: 'Repair confirmed',
+        body: `Your request "${record.title}" at ${place} is fixed and closed.`,
+        linkPath: '/dashboard/my-requests',
+      });
+      if (record.assigneeId) {
+        await this.notifications.notifyUser(record.organizationId, record.assigneeId, {
+          type: 'MAINTENANCE_VERIFIED',
+          title: 'Work verified',
+          body: `"${record.title}" at ${place} was verified and closed.`,
+          linkPath: '/dashboard/work-orders',
+        });
+      }
+    }
   }
 
   async assign(user: RequestUser, input: AssignWorkOrderInput): Promise<WorkOrder> {
     const organizationId = requireOrganization(user);
     const ability = this.abilities.abilityForUser(user);
     const request = await this.db.maintenanceRequest.findFirst({
-      where: { id: input.maintenanceRequestId, organizationId },
-      select: { id: true, tenantId: true, ownerId: true, status: true, workOrder: { select: { id: true } } },
+      where: {
+        id: input.maintenanceRequestId,
+        organizationId,
+        ...buildingScope(user).maintenanceRequest,
+      },
+      select: {
+        id: true,
+        title: true,
+        tenantId: true,
+        ownerId: true,
+        status: true,
+        workOrder: { select: { id: true } },
+        unit: { select: { label: true, property: { select: { name: true } } } },
+      },
     });
     if (!request) throw new NotFoundException('Maintenance request not found');
     assertAccess(ability, 'assign', 'WorkOrder', {
@@ -297,12 +380,12 @@ export class MaintenanceService {
       assigneeId: input.assigneeId,
     });
     if (request.workOrder) throw new ConflictException('This request already has a work order');
-    if (['COMPLETED', 'CANCELLED'].includes(request.status)) {
-      throw new ConflictException('Closed requests cannot be assigned');
+    if (request.status !== 'APPROVED') {
+      throw new ConflictException('Approve the request before assigning it to a technician');
     }
     const assignee = await this.db.user.findFirst({
       where: { id: input.assigneeId, organizationId, role: 'MAINTENANCE', isActive: true },
-      select: { id: true },
+      select: { id: true, fullName: true },
     });
     if (!assignee) throw new BadRequestException('Select an active maintenance technician');
     const referenceCode = `WO-${Date.now().toString(36).slice(-6).toUpperCase()}`;
@@ -326,6 +409,19 @@ export class MaintenanceService {
       });
       return order;
     });
+    const place = `${request.unit.property.name} · ${request.unit.label}`;
+    await this.notifications.notifyUser(organizationId, input.assigneeId, {
+      type: 'MAINTENANCE_ASSIGNED',
+      title: 'New job assigned',
+      body: `You've been assigned "${request.title}" at ${place}.`,
+      linkPath: '/dashboard/work-orders',
+    });
+    await this.notifications.notifyUser(organizationId, request.tenantId, {
+      type: 'MAINTENANCE_ASSIGNED',
+      title: 'Technician assigned',
+      body: `${assignee.fullName} will handle your request "${request.title}".`,
+      linkPath: '/dashboard/my-requests',
+    });
     return toWorkOrder(created);
   }
 
@@ -336,7 +432,10 @@ export class MaintenanceService {
     const ability = this.abilities.abilityForUser(user);
     const scope = scopeFor(ability, 'read', 'WorkOrder');
     if (!scope) return { workOrders: [], summary: emptyWorkOrderSummary() };
-    const filters: Prisma.WorkOrderWhereInput[] = [scope as Prisma.WorkOrderWhereInput];
+    const filters: Prisma.WorkOrderWhereInput[] = [
+      scope as Prisma.WorkOrderWhereInput,
+      buildingScope(user).workOrder,
+    ];
     if (query.status) filters.push({ status: query.status });
     if (query.search) {
       const contains = { contains: query.search, mode: 'insensitive' } as const;
@@ -376,12 +475,13 @@ export class MaintenanceService {
     const scope = scopeFor(ability, 'read', 'WorkOrder');
     if (!scope) throw new NotFoundException('Work order not found');
     const record = await this.db.workOrder.findFirst({
-      where: { AND: [{ id }, scope as Prisma.WorkOrderWhereInput] },
+      where: { AND: [{ id }, scope as Prisma.WorkOrderWhereInput, buildingScope(user).workOrder] },
       select: WORK_ORDER_SELECT,
     });
     if (!record) throw new NotFoundException('Work order not found');
     assertAccess(ability, 'update', 'WorkOrder', workOrderIdentity(record));
-    const status = input.status ?? record.status;
+    const workOrderStatus = input.status ?? record.status;
+    const requestStatus = WORK_ORDER_TO_REQUEST_STATUS[workOrderStatus];
     const updated = await this.db.$transaction(async (tx) => {
       const order = await tx.workOrder.update({
         where: { id },
@@ -389,6 +489,8 @@ export class MaintenanceService {
           status: input.status,
           dueDate: input.dueDate,
           notes: input.notes,
+          completionNotes: input.completionNotes,
+          imageUrls: input.imageUrls,
           startedAt: input.status === 'IN_PROGRESS' ? record.startedAt ?? new Date() : undefined,
           completedAt: input.status === 'COMPLETED' ? new Date() : undefined,
         },
@@ -397,24 +499,43 @@ export class MaintenanceService {
       await tx.maintenanceRequest.update({
         where: { id: record.maintenanceRequestId },
         data: {
-          status,
-          completedAt: status === 'COMPLETED' ? new Date() : undefined,
-          cancelledAt: status === 'CANCELLED' ? new Date() : undefined,
+          status: requestStatus,
+          cancelledAt: requestStatus === 'CANCELLED' ? new Date() : undefined,
         },
       });
       return order;
     });
+    if (input.status === 'COMPLETED') {
+      const place = `${updated.maintenanceRequest.unit.property.name} · ${updated.maintenanceRequest.unit.label}`;
+      await this.notifications.notifyPropertyStaff(
+        updated.organizationId,
+        updated.maintenanceRequest.unit.property.id,
+        {
+          type: 'MAINTENANCE_COMPLETED',
+          title: 'Work marked complete',
+          body: `${updated.assignee.fullName} completed "${updated.maintenanceRequest.title}" at ${place}. Verify to close it.`,
+          linkPath: '/dashboard/maintenance',
+        },
+      );
+    }
     return toWorkOrder(updated);
   }
 
   private async loadRequest(
+    user: RequestUser,
     ability: ReturnType<AbilityService['abilityForUser']>,
     id: string,
   ): Promise<RequestRecord> {
     const scope = scopeFor(ability, 'read', 'MaintenanceRequest');
     if (!scope) throw new NotFoundException('Maintenance request not found');
     const record = await this.db.maintenanceRequest.findFirst({
-      where: { AND: [{ id }, scope as Prisma.MaintenanceRequestWhereInput] },
+      where: {
+        AND: [
+          { id },
+          scope as Prisma.MaintenanceRequestWhereInput,
+          buildingScope(user).maintenanceRequest,
+        ],
+      },
       select: REQUEST_SELECT,
     });
     if (!record || !canAccess(ability, 'read', 'MaintenanceRequest', identityOf(record))) {
@@ -483,6 +604,8 @@ function toWorkOrder(record: WorkOrderRecord): WorkOrder {
     startedAt: record.startedAt?.toISOString() ?? null,
     completedAt: record.completedAt?.toISOString() ?? null,
     notes: record.notes,
+    completionNotes: record.completionNotes,
+    imageUrls: record.imageUrls,
     referenceCode: record.referenceCode,
     assignee: record.assignee,
     request: {

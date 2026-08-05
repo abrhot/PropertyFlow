@@ -86,20 +86,49 @@ export const UNIT_STATUS_LABELS: Record<UnitStatus, string> = {
 
 export const MAINTENANCE_STATUSES = [
   'SUBMITTED',
+  'APPROVED',
+  'REJECTED',
   'ASSIGNED',
   'IN_PROGRESS',
+  'AWAITING_VERIFICATION',
+  'VERIFIED',
   'COMPLETED',
   'CANCELLED',
 ] as const;
 export type MaintenanceStatus = (typeof MAINTENANCE_STATUSES)[number];
 
 export const MAINTENANCE_STATUS_LABELS: Record<MaintenanceStatus, string> = {
-  SUBMITTED: 'Submitted',
+  SUBMITTED: 'Awaiting approval',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
   ASSIGNED: 'Assigned',
   IN_PROGRESS: 'In progress',
+  AWAITING_VERIFICATION: 'Awaiting verification',
+  VERIFIED: 'Verified & closed',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
 };
+
+/** Maintenance statuses that count as closed (no further action expected). */
+export const CLOSED_MAINTENANCE_STATUSES = [
+  'REJECTED',
+  'VERIFIED',
+  'COMPLETED',
+  'CANCELLED',
+] as const;
+
+export const NOTIFICATION_TYPES = [
+  'MAINTENANCE_SUBMITTED',
+  'MAINTENANCE_APPROVED',
+  'MAINTENANCE_REJECTED',
+  'MAINTENANCE_ASSIGNED',
+  'MAINTENANCE_COMPLETED',
+  'MAINTENANCE_VERIFIED',
+  'PAYMENT_DUE',
+  'PAYMENT_RECEIVED',
+  'GENERAL',
+] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const MAINTENANCE_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const;
 export type MaintenancePriority = (typeof MAINTENANCE_PRIORITIES)[number];
@@ -207,6 +236,7 @@ export const APP_SECTIONS = [
   'my_lease',
   'my_payments',
   'my_requests',
+  'team',
   'settings',
 ] as const;
 export type AppSection = (typeof APP_SECTIONS)[number];
@@ -220,27 +250,23 @@ export const ROLE_SECTIONS: Record<UserRole, AppSection[]> = {
   ORG_ADMIN: [
     'dashboard',
     'properties',
-    'leases',
     'applications',
     'payments',
     'maintenance',
-    'work_orders',
     'tenants',
-    'messages',
     'reports',
+    'messages',
+    'team',
     'settings',
   ],
   PROPERTY_MANAGER: [
     'dashboard',
     'properties',
-    'leases',
     'applications',
     'payments',
     'maintenance',
-    'work_orders',
     'tenants',
     'messages',
-    'reports',
     'settings',
   ],
   MAINTENANCE: ['dashboard', 'work_orders', 'settings'],

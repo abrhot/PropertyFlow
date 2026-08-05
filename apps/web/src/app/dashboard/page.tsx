@@ -77,32 +77,37 @@ function DashboardContent() {
           </CardContent>
         </Card>
 
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Your workspace
-          </h3>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {sections.map((key) => {
-              const item = SECTION_META[key];
-              return (
-                <Link key={key} href={item.path} className="group rounded-lg focus:outline-none">
-                  <Card className="h-full transition-colors group-hover:border-primary/35 group-focus-visible:ring-2 group-focus-visible:ring-ring">
-                    <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/8 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                        <item.icon className="h-5 w-5" aria-hidden="true" />
-                      </div>
-                      <ArrowUpRight className="h-5 w-5 text-muted-foreground/40 transition-colors group-hover:text-primary" />
-                    </CardHeader>
-                    <CardContent>
-                      <p className="font-semibold">{item.label}</p>
-                      <p className="text-sm text-muted-foreground">{item.description}</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Quick access</CardTitle>
+            <CardDescription>Jump straight into the areas you use most.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {sections.map((key) => {
+                const item = SECTION_META[key];
+                return (
+                  <Link
+                    key={key}
+                    href={item.path}
+                    className="group flex items-center gap-3 rounded-lg border border-transparent p-3 transition-colors hover:border-border hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                      <item.icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{item.label}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {item.description}
+                      </span>
+                    </span>
+                    <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-primary" />
+                  </Link>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardShell>
   );

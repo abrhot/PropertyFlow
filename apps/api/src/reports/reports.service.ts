@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { ReportDashboardResponse, RequestUser } from '@propertyflow/types';
+import { buildingScope } from '../authorization/building-scope';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -9,13 +10,14 @@ export class ReportsService {
   async dashboard(user: RequestUser): Promise<ReportDashboardResponse> {
     const organizationFilter = user.organizationId ? { organizationId: user.organizationId } : {};
     const ownerId = user.role === 'OWNER' ? user.id : undefined;
+    const scope = buildingScope(user);
     const [payments, properties] = await Promise.all([
       this.prisma.client.payment.findMany({
-        where: { ...organizationFilter, ...(ownerId ? { ownerId } : {}) },
+        where: { ...organizationFilter, ...(ownerId ? { ownerId } : {}), ...scope.payment },
         select: { amountCents: true, status: true, dueDate: true },
       }),
       this.prisma.client.property.findMany({
-        where: { ...organizationFilter, ...(ownerId ? { ownerId } : {}), isActive: true },
+        where: { ...organizationFilter, ...(ownerId ? { ownerId } : {}), ...scope.property, isActive: true },
         select: { name: true, units: { select: { status: true } } },
         orderBy: { name: 'asc' },
       }),

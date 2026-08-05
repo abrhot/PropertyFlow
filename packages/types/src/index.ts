@@ -10,6 +10,7 @@ import type {
   LeaseStatus,
   MaintenancePriority,
   MaintenanceStatus,
+  NotificationType,
   PaymentStatus,
   PropertyType,
   SubscriptionTier,
@@ -64,6 +65,31 @@ export interface RequestUser {
   id: ID;
   organizationId: ID | null;
   role: UserRole;
+  /**
+   * Buildings a PROPERTY_MANAGER is assigned to. Loaded per request and used to
+   * scope managers to their own portfolio. Undefined for every other role
+   * (which are scoped by other means).
+   */
+  managedPropertyIds?: ID[];
+}
+
+/** A property manager and the buildings currently assigned to them. */
+export interface ManagerSummary {
+  id: ID;
+  fullName: string;
+  email: string;
+  isActive: boolean;
+  propertyIds: ID[];
+}
+
+/** Admin view for assigning managers to buildings. */
+export interface ManagerAssignmentsResponse {
+  managers: ManagerSummary[];
+  properties: { id: ID; name: string }[];
+}
+
+export interface UpdateManagerPropertiesRequest {
+  propertyIds: ID[];
 }
 
 // ---- Auth API contracts (DTOs) ----
@@ -447,12 +473,21 @@ export interface WorkOrder extends Timestamped {
   startedAt: ISODateString | null;
   completedAt: ISODateString | null;
   notes: string | null;
+  completionNotes: string | null;
+  imageUrls: string[];
   referenceCode: string;
   assignee: LeaseTenantSummary;
   request: Pick<MaintenanceRequest, 'id' | 'title' | 'priority'> & {
     unit: LeaseUnitSummary;
     tenant: LeaseTenantSummary;
   };
+}
+
+// ---- Work-order completion (technician proof) ----
+
+export interface CompleteWorkOrderRequest {
+  completionNotes?: string;
+  imageUrls?: string[];
 }
 
 export interface WorkOrderListResponse {
@@ -463,6 +498,27 @@ export interface WorkOrderListResponse {
     inProgressCount: number;
     completedCount: number;
   };
+}
+
+// ---- Notifications ----
+
+export interface AppNotification {
+  id: ID;
+  type: NotificationType;
+  title: string;
+  body: string;
+  linkPath: string | null;
+  isRead: boolean;
+  createdAt: ISODateString;
+}
+
+export interface NotificationListResponse {
+  notifications: AppNotification[];
+  unreadCount: number;
+}
+
+export interface UnreadCountResponse {
+  unreadCount: number;
 }
 
 // ---- Tenant directory ----
@@ -490,6 +546,21 @@ export interface TenantDirectoryResponse {
     activeLeases: number;
     withoutActiveLease: number;
   };
+}
+
+export interface CreateTenantRequest {
+  fullName: string;
+  email: string;
+  unitId?: ID;
+  rentCents?: number;
+  startDate?: ISODateString;
+  endDate?: ISODateString;
+}
+
+export interface CreateTenantResponse {
+  tenant: TenantDirectoryEntry;
+  /** A one-time password the admin shares so the resident can sign in. */
+  temporaryPassword: string;
 }
 
 // ---- Rental applications ----
@@ -536,6 +607,51 @@ export interface UpdateApplicationRequest {
 
 export interface ApplicationFormOptions {
   units: LeaseUnitSummary[];
+}
+
+/** A vacant unit shown on the public Available Homes browse page. */
+export interface PublicListing {
+  unitId: ID;
+  label: string;
+  bedrooms: number;
+  bathrooms: number;
+  squareFeet: number | null;
+  marketRentCents: number;
+  propertyId: ID;
+  propertyName: string;
+  propertyType: PropertyType;
+  addressLine1: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  yearBuilt: number | null;
+  /** Building notes / marketing description when set. */
+  description: string | null;
+  imageUrl: string | null;
+  organizationId: ID;
+  /** Highlighted facilities derived from the building type and unit size. */
+  facilities: string[];
+}
+
+export interface PublicListingsResponse {
+  listings: PublicListing[];
+}
+
+export type ListingInterest = 'RENT' | 'BUY';
+
+export interface PublicInquiryRequest {
+  unitId: ID;
+  interest: ListingInterest;
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone?: string;
+  desiredMoveIn?: ISODateString;
+  notes?: string;
+}
+
+export interface PublicInquiryResponse {
+  message: string;
+  applicationId: ID;
 }
 
 export interface ReportDashboardResponse {
@@ -730,6 +846,8 @@ export interface UpdateWorkOrderRequest {
   status?: WorkOrderStatus;
   dueDate?: ISODateString | null;
   notes?: string;
+  completionNotes?: string;
+  imageUrls?: string[];
 }
 
 export type {

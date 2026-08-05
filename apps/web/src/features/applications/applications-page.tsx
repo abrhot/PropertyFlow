@@ -30,31 +30,81 @@ function ApplicationsContent() {
   });
   const summary = applications.data?.summary;
   return (
-    <DashboardShell title="Applications">
+    <DashboardShell title="Inquiries">
       <div className="mx-auto max-w-7xl space-y-6">
-        <div><h2 className="text-2xl font-semibold tracking-tight">Rental applications</h2><p className="mt-1 text-muted-foreground">Review applicants and move each submission through screening.</p></div>
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Rent &amp; buy inquiries</h2>
+          <p className="mt-1 text-muted-foreground">
+            Prospects from the public Available Homes page. Screen, approve, or deny each request.
+          </p>
+        </div>
         <section className="grid gap-4 sm:grid-cols-3">
-          <Metric label="Applications" value={summary?.applicationCount} icon={ClipboardList} />
+          <Metric label="Inquiries" value={summary?.applicationCount} icon={ClipboardList} />
           <Metric label="In screening" value={summary?.screeningCount} icon={Users} />
-          <Metric label="Approval rate" value={summary ? `${summary.approvalRate}%` : undefined} icon={ShieldCheck} />
+          <Metric
+            label="Approval rate"
+            value={summary ? `${summary.approvalRate}%` : undefined}
+            icon={ShieldCheck}
+          />
         </section>
-        <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search applicants or properties..." className="pl-9" /></div>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, email, or property..."
+            className="pl-9"
+          />
+        </div>
         <div className="grid gap-4">
           {applications.data?.applications.map((application) => (
             <Card key={application.id}>
               <CardContent className="grid gap-4 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
                 <div>
-                  <div className="flex items-center gap-2"><p className="font-semibold">{application.applicantName}</p><Badge variant="secondary">{APPLICATION_STATUS_LABELS[application.status]}</Badge></div>
-                  <p className="mt-1 text-sm text-muted-foreground">{application.applicantEmail} · {application.unit.propertyName} {application.unit.label}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">Submitted {new Date(application.submittedAt).toLocaleDateString()}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold">{application.applicantName}</p>
+                    <Badge variant="secondary">{APPLICATION_STATUS_LABELS[application.status]}</Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {application.applicantEmail}
+                    {application.applicantPhone ? ` · ${application.applicantPhone}` : ''}
+                    {' · '}
+                    {application.unit.propertyName} · {application.unit.label}
+                  </p>
+                  {application.notes && (
+                    <p className="mt-2 whitespace-pre-wrap text-sm">{application.notes}</p>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Submitted {new Date(application.submittedAt).toLocaleDateString()}
+                  </p>
                 </div>
-                <Select value={application.status} onValueChange={(status) => update.mutate({ id: application.id, status: status as ApplicationStatus })}>
-                  <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-                  <SelectContent>{APPLICATION_STATUSES.map((status) => <SelectItem key={status} value={status}>{APPLICATION_STATUS_LABELS[status]}</SelectItem>)}</SelectContent>
+                <Select
+                  value={application.status}
+                  onValueChange={(status) =>
+                    update.mutate({ id: application.id, status: status as ApplicationStatus })
+                  }
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {APPLICATION_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {APPLICATION_STATUS_LABELS[status]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </CardContent>
             </Card>
           ))}
+          {!applications.isLoading && !applications.data?.applications.length && (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                No inquiries yet. Prospects appear here after they submit from Available Homes.
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </DashboardShell>

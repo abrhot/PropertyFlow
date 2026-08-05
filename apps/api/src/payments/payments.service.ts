@@ -20,6 +20,8 @@ import type {
   UpdatePaymentInput,
 } from '@propertyflow/validation';
 import { AbilityService } from '../authorization/ability.service';
+import { buildingScope } from '../authorization/building-scope';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   assertCanAccessPayment,
@@ -27,6 +29,10 @@ import {
   paymentScopeFor,
   type PaymentIdentity,
 } from './payment-access';
+
+function formatMoney(cents: number): string {
+  return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 const PAYMENT_SELECT = {
   id: true,
@@ -64,6 +70,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly abilities: AbilityService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private get db(): PrismaClient {
@@ -75,7 +82,7 @@ export class PaymentsService {
     const scope = paymentScopeFor(ability, 'read');
     if (!scope) return { payments: [], summary: emptySummary() };
 
-    const filters: Prisma.PaymentWhereInput[] = [scope];
+    const filters: Prisma.PaymentWhereInput[] = [scope, buildingScope(user).payment];
     if (query.status) filters.push({ status: query.status });
     if (query.leaseId) filters.push({ leaseId: query.leaseId });
     if (query.tenantId) filters.push({ tenantId: query.tenantId });
@@ -139,7 +146,7 @@ export class PaymentsService {
   async create(user: RequestUser, input: CreatePaymentInput): Promise<Payment> {
     const ability = this.abilities.abilityForUser(user);
     const organizationId = requireOrganization(user);
-    const lease = await this.loadLease(organizationId, input.leaseId);
+    const lease = await this.loadLease(user, organizationId, input.leaseId);
     const identity: PaymentIdentity = {
       id: '',
       organizationId,
@@ -168,6 +175,14 @@ export class PaymentsService {
       },
       select: PAYMENT_SELECT,
     });
+    if (record.status !== 'PAID') {
+      await this.notifications.notifyUser(record.organizationId, record.tenantId, {
+        type: 'PAYMENT_DUE',
+        title: 'New charge added',
+        body: `${formatMoney(record.amountCents)} for ${record.description} is due ${record.dueDate.toLocaleDateString('en-US')}.`,
+        linkPath: '/dashboard/my-payments',
+      });
+    }
     return toPayment(record);
   }
 
@@ -221,6 +236,17 @@ export class PaymentsService {
       },
       select: PAYMENT_SELECT,
     });
+    await this.notifications.notifyPropertyStaff(
+      updated.organizationId,
+      updated.lease.unit.property.id,
+      {
+        type: 'PAYMENT_RECEIVED',
+        title: 'Rent payment received',
+        body: `${updated.tenant.fullName} paid ${formatMoney(updated.amountCents)} for ${updated.lease.unit.property.name} · ${updated.lease.unit.label}.`,
+        linkPath: '/dashboard/payments',
+      },
+      user.id,
+    );
     return toPayment(updated);
   }
 
@@ -232,7 +258,7 @@ export class PaymentsService {
     const scope = paymentScopeFor(ability, 'read');
     if (!scope) throw new NotFoundException('Payment not found');
     const record = await this.db.payment.findFirst({
-      where: { AND: [{ id }, scope] },
+      where: { AND: [{ id }, scope, buildingScope(user).payment] },
       select: PAYMENT_SELECT,
     });
     if (!record || !canAccessPayment(ability, 'read', identityOf(record))) {
@@ -241,16 +267,16 @@ export class PaymentsService {
     return { ability, record };
   }
 
-  private async loadLease(organizationId: string, leaseId: string) {
+  private async loadLease(user: RequestUser, organizationId: string, leaseId: string) {
     const lease = await this.db.lease.findFirst({
-      where: { id: leaseId, organizationId },
+      where: { id: leaseId, organizationId, ...buildingScope(user).lease },
       select: {
         id: true,
         tenantId: true,
         unit: { select: { property: { select: { ownerId: true } } } },
       },
     });
-    if (!lease) throw new BadRequestException('Select a lease from your own organization');
+    if (!lease) throw new BadRequestException('Select a lease from a building you manage');
     return lease;
   }
 }

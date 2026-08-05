@@ -78,6 +78,9 @@ export default async function HomePage() {
           </Link>
           <nav className="flex items-center gap-2">
             <Button asChild variant="ghost">
+              <Link href="/homes">Available homes</Link>
+            </Button>
+            <Button asChild variant="ghost">
               <Link href="/login">Sign in</Link>
             </Button>
             <Button asChild>
@@ -105,13 +108,13 @@ export default async function HomePage() {
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <Button asChild size="lg">
-                <Link href="/register">
-                  Start free
+                <Link href="/homes">
+                  Browse homes
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link href="/login">Explore a demo</Link>
+                <Link href="/login">Staff sign in</Link>
               </Button>
             </div>
             <ul className="flex flex-wrap gap-x-6 gap-y-2 pt-2 text-sm text-muted-foreground">

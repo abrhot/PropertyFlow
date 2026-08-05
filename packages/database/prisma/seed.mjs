@@ -338,6 +338,8 @@ async function main() {
   const createdMaintenance = await seedMaintenance(org.id, usersByEmail);
   const createdApplications = await seedApplications(org.id);
   const createdConversations = await seedConversations(org.id, usersByEmail);
+  const managedCount = await seedManagerAssignments(org.id, usersByEmail);
+  await seedNotifications(org.id, usersByEmail);
 
   console.log(`\nSeeded organization "${org.name}" and ${USERS.length} users.`);
   console.log(
@@ -358,9 +360,112 @@ async function main() {
   console.log(
     createdConversations ? `Added ${createdConversations} conversation.` : 'Conversations already present.',
   );
+  console.log(`Property manager assigned to ${managedCount} building(s).`);
   console.log(`Password for every seeded user: ${PASSWORD}\n`);
   for (const [email, , role] of USERS) console.log(`  ${role.padEnd(18)} ${email}`);
   console.log('');
+}
+
+/**
+ * Seeds a few unread in-app notifications per demo role so the header bell
+ * blinks on first sign-in. Idempotent — clears the org's notifications and
+ * recreates a fresh set every run.
+ */
+async function seedNotifications(organizationId, usersByEmail) {
+  const byRole = (email) => usersByEmail.get(email)?.id;
+  const admin = byRole('orgadmin@demo.test');
+  const manager = byRole('manager@demo.test');
+  const tenant = byRole('tenant@demo.test');
+  const technician = byRole('maintenance@demo.test');
+
+  // Each row is deliberately role-specific: staff never get tenant links, and
+  // tenants never get staff inbox links. The bell also remaps paths by role.
+  const rows = [
+    admin && {
+      userId: admin,
+      type: 'MAINTENANCE_SUBMITTED',
+      title: 'New maintenance request',
+      body: 'Theo Tenant reported "Leaking kitchen faucet" at Maple Court · Unit 2B.',
+      linkPath: '/dashboard/maintenance',
+    },
+    admin && {
+      userId: admin,
+      type: 'GENERAL',
+      title: 'New rent inquiry',
+      body: 'A prospect asked about an available home. Review it in Inquiries.',
+      linkPath: '/dashboard/applications',
+    },
+    manager && {
+      userId: manager,
+      type: 'MAINTENANCE_SUBMITTED',
+      title: 'New maintenance request',
+      body: 'A resident reported an issue in a building you manage.',
+      linkPath: '/dashboard/maintenance',
+    },
+    technician && {
+      userId: technician,
+      type: 'MAINTENANCE_ASSIGNED',
+      title: 'New job assigned',
+      body: 'You have a new work order waiting to be started.',
+      linkPath: '/dashboard/work-orders',
+    },
+    tenant && {
+      userId: tenant,
+      type: 'PAYMENT_DUE',
+      title: 'Rent due soon',
+      body: 'Your next rent payment is coming up. Tap to review and pay.',
+      linkPath: '/dashboard/my-payments',
+    },
+    tenant && {
+      userId: tenant,
+      type: 'MAINTENANCE_APPROVED',
+      title: 'Request approved',
+      body: 'Your maintenance request was approved and is being scheduled.',
+      linkPath: '/dashboard/my-requests',
+    },
+  ].filter(Boolean);
+
+  await prisma.notification.deleteMany({ where: { organizationId } });
+  if (rows.length) {
+    await prisma.notification.createMany({
+      data: rows.map((row) => ({ organizationId, ...row })),
+    });
+  }
+}
+
+/**
+ * Assigns the demo property manager to a subset of the portfolio so building
+ * scoping is visible out of the box: they see roughly half the buildings, the
+ * admin sees all of them. Idempotent — it re-sets the assignment every run.
+ */
+async function seedManagerAssignments(organizationId, usersByEmail) {
+  const manager = usersByEmail.get('manager@demo.test');
+  if (!manager) return 0;
+  const properties = await prisma.property.findMany({
+    where: { organizationId },
+    orderBy: { name: 'asc' },
+    select: { id: true, units: { select: { _count: { select: { leases: true } } } } },
+  });
+  if (!properties.length) return 0;
+
+  // Prefer buildings that actually have leases so the demo manager sees real
+  // scoped data (leases, payments, tenants). Fall back to the first half of the
+  // portfolio if nothing is leased yet. Either way it stays a strict subset so
+  // the admin's org-wide view is a clear contrast.
+  const withActivity = properties.filter((property) =>
+    property.units.some((unit) => unit._count.leases > 0),
+  );
+  const base = withActivity.length ? withActivity : properties;
+  const assigned =
+    base.length < properties.length
+      ? base
+      : base.slice(0, Math.max(1, Math.ceil(base.length / 2)));
+
+  await prisma.user.update({
+    where: { id: manager.id },
+    data: { managedProperties: { set: assigned.map((property) => ({ id: property.id })) } },
+  });
+  return assigned.length;
 }
 
 main()
