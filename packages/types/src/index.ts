@@ -185,6 +185,12 @@ export interface AuthResponse {
   user: AuthUser;
   /** The caller's authorization rules, already scoped to them. */
   abilityRules: AbilityRule[];
+  /**
+   * Only present for token-based (mobile) clients that can't use the httpOnly
+   * refresh cookie. Web clients receive the refresh token via cookie instead and
+   * this field stays undefined.
+   */
+  refreshToken?: string;
 }
 
 /** The `GET /auth/me` payload: the current user plus their authorization rules. */

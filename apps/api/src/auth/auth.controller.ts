@@ -35,7 +35,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
     const result = await this.authService.register(dto, this.ctx(req));
-    return this.sessionCookies.complete(result, res);
+    return this.sessionCookies.complete(result, res, req);
   }
 
   @Public()
@@ -47,7 +47,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
     const result = await this.authService.login(dto, this.ctx(req));
-    return this.sessionCookies.complete(result, res);
+    return this.sessionCookies.complete(result, res, req);
   }
 
   @Public()
@@ -59,7 +59,7 @@ export class AuthController {
   ): Promise<AuthResponse> {
     const token = this.sessionCookies.readRefreshToken(req);
     const result = await this.authService.refresh(token, this.ctx(req));
-    return this.sessionCookies.complete(result, res);
+    return this.sessionCookies.complete(result, res, req);
   }
 
   @Public()

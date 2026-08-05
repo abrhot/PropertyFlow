@@ -15,17 +15,23 @@ export class SessionCookieService {
     private readonly abilities: AbilityService,
   ) {}
 
-  complete(result: AuthResult, response: Response): AuthResponse {
-    response.cookie(
-      REFRESH_TOKEN_COOKIE,
-      result.refreshToken,
-      this.refreshOptions(result.refreshMaxAgeMs),
-    );
-    response.cookie(SESSION_HINT_COOKIE, '1', this.hintOptions(result.refreshMaxAgeMs));
+  complete(result: AuthResult, response: Response, request?: Request): AuthResponse {
+    const mobile = this.isMobileClient(request);
+    // Web keeps the refresh token in an httpOnly cookie. Mobile has no cookie
+    // jar, so it receives the refresh token in the body and stores it securely.
+    if (!mobile) {
+      response.cookie(
+        REFRESH_TOKEN_COOKIE,
+        result.refreshToken,
+        this.refreshOptions(result.refreshMaxAgeMs),
+      );
+      response.cookie(SESSION_HINT_COOKIE, '1', this.hintOptions(result.refreshMaxAgeMs));
+    }
     return {
       accessToken: result.accessToken,
       user: result.user,
       abilityRules: this.abilities.rulesForUser(result.user),
+      ...(mobile ? { refreshToken: result.refreshToken } : {}),
     };
   }
 
@@ -34,8 +40,20 @@ export class SessionCookieService {
     response.clearCookie(SESSION_HINT_COOKIE, this.hintOptions(0));
   }
 
+  /** Reads the refresh token from the cookie (web) or the request body (mobile). */
   readRefreshToken(request: Request): string | undefined {
-    return (request.cookies as Record<string, string> | undefined)?.[REFRESH_TOKEN_COOKIE];
+    const fromCookie = (request.cookies as Record<string, string> | undefined)?.[
+      REFRESH_TOKEN_COOKIE
+    ];
+    if (fromCookie) return fromCookie;
+    const fromBody = (request.body as { refreshToken?: unknown } | undefined)?.refreshToken;
+    return typeof fromBody === 'string' && fromBody.length > 0 ? fromBody : undefined;
+  }
+
+  isMobileClient(request?: Request): boolean {
+    const header = request?.headers['x-client-type'];
+    const value = Array.isArray(header) ? header[0] : header;
+    return value?.toLowerCase() === 'mobile';
   }
 
   private refreshOptions(maxAge: number) {

@@ -1,11 +1,16 @@
 /**
  * Typed PropertyFlow API client (SDK) used by web and mobile.
  *
- * Design notes:
- * - The refresh token is an httpOnly cookie managed by the server; this client
- *   never reads/writes it. It only holds the short-lived access token in memory.
- * - On a 401 it will try `POST /auth/refresh` once (using the cookie) and retry
- *   the original request, so callers rarely deal with token expiry directly.
+ * Two auth transports share the exact same endpoints:
+ * - `web` (default): the refresh token lives in an httpOnly cookie managed by
+ *   the server. This client never reads/writes it and only holds the short-lived
+ *   access token in memory. On a 401 it calls `POST /auth/refresh` (using the
+ *   cookie) once and retries the original request.
+ * - `mobile`: React Native has no reliable cookie jar, so the refresh token is
+ *   returned in the auth response body and persisted through a {@link TokenStore}
+ *   (e.g. Expo SecureStore). Refreshes send that token in the request body.
+ *
+ * Callers rarely deal with token expiry directly.
  */
 
 import type {
@@ -141,12 +146,29 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Persists the refresh token for token-based (mobile) clients. Web clients use
+ * an httpOnly cookie instead and never provide a store. Methods may be sync or
+ * async so implementations can wrap secure device storage.
+ */
+export interface TokenStore {
+  getRefreshToken(): string | null | Promise<string | null>;
+  setRefreshToken(token: string | null): void | Promise<void>;
+}
+
 export interface ApiClientOptions {
   baseUrl: string;
   /** Called whenever the access token changes (login/refresh/logout). */
   onAccessTokenChange?: (token: string | null) => void;
   /** Provide an initial access token (e.g. restored from memory). */
   accessToken?: string | null;
+  /**
+   * Transport for the refresh token. `web` (default) relies on the httpOnly
+   * cookie; `mobile` reads/writes the refresh token from {@link TokenStore}.
+   */
+  clientType?: 'web' | 'mobile';
+  /** Required when `clientType` is `mobile`. */
+  tokenStore?: TokenStore;
 }
 
 export class ApiClient {
@@ -154,11 +176,19 @@ export class ApiClient {
   private accessToken: string | null;
   private onAccessTokenChange?: (token: string | null) => void;
   private refreshing: Promise<boolean> | null = null;
+  private readonly clientType: 'web' | 'mobile';
+  private readonly tokenStore?: TokenStore;
 
   constructor(options: ApiClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, '');
     this.accessToken = options.accessToken ?? null;
     this.onAccessTokenChange = options.onAccessTokenChange;
+    this.clientType = options.clientType ?? 'web';
+    this.tokenStore = options.tokenStore;
+  }
+
+  private get isMobile(): boolean {
+    return this.clientType === 'mobile';
   }
 
   setAccessToken(token: string | null): void {
@@ -170,15 +200,41 @@ export class ApiClient {
     return this.accessToken;
   }
 
+  /**
+   * Persists any refresh token returned in an auth response (mobile transport
+   * only) so the next app launch / 401 can silently refresh.
+   */
+  private async captureSession(res: AuthResponse): Promise<AuthResponse> {
+    this.setAccessToken(res.accessToken);
+    if (this.isMobile && this.tokenStore && res.refreshToken) {
+      await this.tokenStore.setRefreshToken(res.refreshToken);
+    }
+    return res;
+  }
+
+  /**
+   * Restores a session on app launch (mobile): if a refresh token is stored it
+   * exchanges it for a fresh access token. Returns true when a session is live.
+   */
+  async bootstrap(): Promise<boolean> {
+    if (this.isMobile) {
+      const stored = await this.tokenStore?.getRefreshToken();
+      if (!stored) return false;
+    }
+    return this.tryRefresh();
+  }
+
   private async request<T>(path: string, init: RequestInit = {}, retryOn401 = true): Promise<T> {
     const headers = new Headers(init.headers);
     headers.set('Content-Type', 'application/json');
     if (this.accessToken) headers.set('Authorization', `Bearer ${this.accessToken}`);
+    // Signals the API to return the refresh token in the body instead of a cookie.
+    if (this.isMobile) headers.set('X-Client-Type', 'mobile');
 
     const res = await fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers,
-      credentials: 'include', // send/receive the httpOnly refresh cookie
+      credentials: 'include', // web: send/receive the httpOnly refresh cookie (no-op on RN)
     });
 
     if (res.status === 401 && retryOn401 && path !== '/auth/refresh') {
@@ -202,13 +258,14 @@ export class ApiClient {
   /** De-duplicated refresh: concurrent 401s share a single refresh call. */
   private tryRefresh(): Promise<boolean> {
     if (!this.refreshing) {
-      this.refreshing = this.request<AuthResponse>('/auth/refresh', { method: 'POST' }, false)
-        .then((res) => {
-          this.setAccessToken(res.accessToken);
+      this.refreshing = this.performRefresh()
+        .then(async (res) => {
+          await this.captureSession(res);
           return true;
         })
-        .catch(() => {
+        .catch(async () => {
           this.setAccessToken(null);
+          if (this.isMobile) await this.tokenStore?.setRefreshToken(null);
           return false;
         })
         .finally(() => {
@@ -218,6 +275,17 @@ export class ApiClient {
     return this.refreshing;
   }
 
+  private async performRefresh(): Promise<AuthResponse> {
+    // Mobile sends the stored refresh token in the body; web relies on the cookie.
+    let init: RequestInit = { method: 'POST' };
+    if (this.isMobile) {
+      const stored = await this.tokenStore?.getRefreshToken();
+      if (!stored) throw new ApiError(401, 'No stored refresh token');
+      init = { method: 'POST', body: JSON.stringify({ refreshToken: stored }) };
+    }
+    return this.request<AuthResponse>('/auth/refresh', init, false);
+  }
+
   // ---- Auth endpoints ----
 
   async register(input: RegisterRequest): Promise<AuthResponse> {
@@ -225,8 +293,7 @@ export class ApiClient {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    this.setAccessToken(res.accessToken);
-    return res;
+    return this.captureSession(res);
   }
 
   async login(input: LoginRequest): Promise<AuthResponse> {
@@ -234,15 +301,19 @@ export class ApiClient {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    this.setAccessToken(res.accessToken);
-    return res;
+    return this.captureSession(res);
   }
 
   async logout(): Promise<void> {
     try {
-      await this.request<void>('/auth/logout', { method: 'POST' }, false);
+      const body =
+        this.isMobile && this.tokenStore
+          ? JSON.stringify({ refreshToken: await this.tokenStore.getRefreshToken() })
+          : undefined;
+      await this.request<void>('/auth/logout', { method: 'POST', body }, false);
     } finally {
       this.setAccessToken(null);
+      if (this.isMobile) await this.tokenStore?.setRefreshToken(null);
     }
   }
 
@@ -293,8 +364,7 @@ export class ApiClient {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    this.setAccessToken(response.accessToken);
-    return response;
+    return this.captureSession(response);
   }
 
   // ---- Properties & units ----

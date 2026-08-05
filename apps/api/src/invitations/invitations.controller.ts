@@ -86,6 +86,6 @@ export class InvitationsController {
       userAgent: request.headers['user-agent'],
       ipAddress: request.ip,
     });
-    return this.sessionCookies.complete(result, response);
+    return this.sessionCookies.complete(result, response, request);
   }
 }
