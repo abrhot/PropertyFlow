@@ -134,15 +134,13 @@ thread so a tenant's `participantIds`-scoped rule maps to a single-table query.
 
 ## Platform administration (SUPER_ADMIN)
 
-| Method | Path                 | Auth                  | Body / Notes |
-| ------ | -------------------- | --------------------- | ------------ |
-| GET    | `/organizations`     | `read Organization`   | All management companies with user/property/active-lease counts. Platform admin only. |
-| PATCH  | `/organizations/:id` | `update Organization` | Change an org's name, subscription tier, or active status. |
-| GET    | `/billing/overview`  | `access billing`      | Subscription MRR, per-tier revenue breakdown, and per-org subscription rows. |
+The platform-level billing and organizations management module was removed in a
+recent refactor. The `SUPER_ADMIN` role is still defined in the authorization
+model and will be reintroduced when the SaaS subscription layer (Phase 7) is
+implemented.
 
-These routes additionally assert `SUPER_ADMIN` in the service, so an org admin
-whose CASL rule allows reading *their own* organization can never enumerate the
-platform.
+Until then, platform administration is performed directly against the database
+or via future admin tooling.
 
 ## Token model
 

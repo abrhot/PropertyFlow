@@ -10,8 +10,8 @@ still deploys independently.
 propertyflow/
 ├── apps/
 │   ├── web/        # Next.js (App Router) + Tailwind + shadcn/ui + TanStack Query
-│   ├── mobile/     # React Native (Expo) — placeholder
-│   └── api/        # NestJS backend (REST)
+│   ├── mobile/     # React Native (Expo) + Expo Router + native components
+│   └── api/        # NestJS backend (REST) + Socket.IO realtime gateway
 ├── packages/
 │   ├── ui/         # Shared React primitives
 │   ├── types/      # Shared TypeScript types & API contracts (DTOs)
@@ -47,8 +47,8 @@ packages before apps via `dependsOn: ["^build"]`.
 ## Technology stack
 
 - **Web:** Next.js + TypeScript + Tailwind CSS + shadcn/ui + TanStack Query
-- **Backend:** NestJS + PostgreSQL + Prisma + (Redis for jobs, later)
-- **Mobile:** React Native (Expo) — shares types/validation/api-client
+- **Backend:** NestJS + PostgreSQL + Prisma + Socket.IO + (Redis for jobs, later)
+- **Mobile:** React Native (Expo) + Expo Router — shares types/validation/api-client
 - **Auth:** JWT access + refresh (rotation), bcrypt, RBAC scoped by organization
 - **Payments (later):** Stripe · **Storage:** S3/Cloudinary · **Push:** FCM
 

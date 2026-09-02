@@ -10,7 +10,7 @@ financial reporting.
 
 ## Tech stack
 
-Next.js · NestJS · React Native (Expo, planned) · PostgreSQL + Prisma · Redis ·
+Next.js · NestJS · React Native (Expo) · PostgreSQL + Prisma · Redis ·
 Turborepo · pnpm · TypeScript · Zod · Tailwind CSS + shadcn/ui · TanStack Query
 
 ## Structure
@@ -19,7 +19,7 @@ Turborepo · pnpm · TypeScript · Zod · Tailwind CSS + shadcn/ui · TanStack Q
 apps/
   web/        Next.js admin/tenant/owner web app (Tailwind + shadcn/ui)
   api/        NestJS backend (auth, multi-tenant, RBAC)
-  mobile/     React Native (Expo) placeholder
+  mobile/     React Native (Expo) resident, field, and staff app
 packages/
   ui · types · auth · database · config · utils · validation · constants · api-client
 docs/         requirements · architecture · database · api
@@ -58,6 +58,19 @@ pnpm dev
 > Note: the Docker Postgres is published on host port **5433** (5432 is often
 > taken by a local Postgres install). The example env files already point there.
 
+## Mobile app (Phase 4 — in progress)
+
+The mobile app is built with **React Native (Expo)** in `apps/mobile/` and
+targets residents, maintenance technicians, and field staff first.
+
+```bash
+pnpm dev:mobile
+```
+
+On a physical device, set `EXPO_PUBLIC_API_URL` to your development machine's
+LAN address. See [`docs/mobile-architecture.md`](docs/mobile-architecture.md)
+for the architecture and `apps/mobile/README.md` for build/release notes.
+
 ## Authentication (Phase 1 — implemented)
 
 Full auth is built and tested end-to-end:
@@ -81,8 +94,11 @@ See [`docs/authorization.md`](docs/authorization.md) for roles and CASL usage.
 
 ```bash
 pnpm dev         # run all apps (Turborepo)
+pnpm dev:apps    # run web + api only
+pnpm dev:mobile  # start the Expo mobile app
 pnpm build       # build everything
 pnpm typecheck   # type-check everything
+pnpm typecheck:mobile  # type-check the mobile app
 pnpm lint        # lint everything
 ```
 
