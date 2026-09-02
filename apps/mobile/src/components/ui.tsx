@@ -175,7 +175,7 @@ export function Button({
   compact?: boolean;
   inline?: boolean;
 }) {
-  const { colors, radius, spacing } = useTheme();
+  const { colors, spacing } = useTheme();
   const isDisabled = disabled || loading;
   const palette = {
     primary: { bg: colors.primary, fg: colors.primaryText, border: colors.primary },
@@ -1128,7 +1128,7 @@ export function Sparkline({
   height?: number;
   tone?: string;
 }) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, radius } = useTheme();
   if (values.length === 0) return null;
 
   const peak = Math.max(...values, 1);

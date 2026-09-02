@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Writes this machine's LAN IPv4 address into app.json as `expo.extra.apiUrl`
  * so a freshly built APK points at the current network by default.

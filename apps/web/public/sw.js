@@ -1,3 +1,4 @@
+/* global self, caches */
 // PropertyFlow service worker.
 // Goals: make the app installable, provide an offline fallback for navigations,
 // and cache static assets — without ever caching API traffic or authenticated

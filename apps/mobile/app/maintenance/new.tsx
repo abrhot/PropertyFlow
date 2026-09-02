@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { ApiError } from '@propertyflow/api-client';
 import { MAINTENANCE_PRIORITIES, MAINTENANCE_PRIORITY_LABELS } from '@propertyflow/constants';
 import type { MaintenancePriority } from '@propertyflow/constants';

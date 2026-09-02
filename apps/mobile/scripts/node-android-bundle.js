@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Node wrapper for Android release bundling in the monorepo.
  * Forces Expo/Metro to use the app project root (not the workspace root).

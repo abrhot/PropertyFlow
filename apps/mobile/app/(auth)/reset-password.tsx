@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 import { useTheme } from '@/features/theme/theme-context';
 
 export default function ResetPasswordScreen() {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing } = useTheme();
   const { token = '' } = useLocalSearchParams<{ token?: string }>();
   const router = useRouter();
   const [password, setPassword] = useState('');

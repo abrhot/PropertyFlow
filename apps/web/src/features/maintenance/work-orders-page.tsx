@@ -146,8 +146,8 @@ function WorkOrdersContent() {
                 {order.imageUrls.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {order.imageUrls.map((url) => (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <a key={url} href={url} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={url}
                           alt="Completion proof"

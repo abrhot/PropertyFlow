@@ -53,7 +53,6 @@ import { api } from '@/lib/api';
 import { maintenanceKeys, workOrderKeys } from './queries';
 
 function MaintenanceContent({ tenantView }: { tenantView: boolean }) {
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [assigning, setAssigning] = useState<MaintenanceRequest | null>(null);

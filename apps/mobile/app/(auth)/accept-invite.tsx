@@ -13,7 +13,7 @@ import { formatDate } from '@/lib/format';
 import { useTheme } from '@/features/theme/theme-context';
 
 export default function AcceptInviteScreen() {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing } = useTheme();
   const { token = '' } = useLocalSearchParams<{ token?: string }>();
   const router = useRouter();
   const { acceptInvitation } = useAuth();

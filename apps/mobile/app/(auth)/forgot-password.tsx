@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 import { useTheme } from '@/features/theme/theme-context';
 
 export default function ForgotPasswordScreen() {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing } = useTheme();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);

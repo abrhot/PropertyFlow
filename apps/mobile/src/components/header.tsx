@@ -18,7 +18,7 @@ export function AppHeader({
   greeting?: string;
 }) {
   const router = useRouter();
-  const { colors, spacing, radius } = useTheme();
+  const { colors, radius } = useTheme();
   const { data } = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: () => api.getUnreadNotificationCount(),

@@ -25,7 +25,6 @@ import { hubEntriesFor } from '@/features/nav/sections';
 import { useTheme } from '@/features/theme/theme-context';
 import { api } from '@/lib/api';
 import { formatCents, formatDate, formatRelative } from '@/lib/format';
-import { maintenanceTone } from '@/lib/status';
 
 export default function HomeScreen() {
   const { user, sections } = useAuth();

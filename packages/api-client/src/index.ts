@@ -25,7 +25,6 @@ import type {
   UpdateNotificationPreferencesRequest,
   UpdateOrganizationProfileRequest,
   UpdateProfileRequest,
-  Conversation,
   ConversationDetail,
   ConversationListResponse,
   DashboardSummaryResponse,

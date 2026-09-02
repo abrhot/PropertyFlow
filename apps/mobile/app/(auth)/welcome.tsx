@@ -41,7 +41,7 @@ const SLIDES = [
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors, spacing } = useTheme();
+  const { spacing } = useTheme();
   const [index, setIndex] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
   const slide = SLIDES[index];

@@ -12,7 +12,7 @@ export function ListingCard({
   listing: PublicListing;
   onPress: () => void;
 }) {
-  const { colors, radius, spacing } = useTheme();
+  const { colors, spacing } = useTheme();
   const specs = [
     `${listing.bedrooms === 0 ? 'Studio' : `${listing.bedrooms} Bed`}`,
     `${listing.bathrooms} Bath`,
