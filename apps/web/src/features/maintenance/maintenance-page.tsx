@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import type { Badge as BadgeComponent } from '@/components/ui/badge';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -57,6 +57,27 @@ function MaintenanceContent({ tenantView }: { tenantView: boolean }) {
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [assigning, setAssigning] = useState<MaintenanceRequest | null>(null);
+  const [draft, setDraft] = useState<{ title: string; description: string; priority: MaintenancePriority }>({
+    title: '',
+    description: '',
+    priority: 'NORMAL',
+  });
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const title = query.get('title') ?? '';
+    const description = query.get('description') ?? '';
+    const priority = query.get('priority');
+    if (!title && !description) return;
+    setDraft({
+      title,
+      description,
+      priority: MAINTENANCE_PRIORITIES.includes(priority as MaintenancePriority)
+        ? (priority as MaintenancePriority)
+        : 'NORMAL',
+    });
+    setCreateOpen(true);
+  }, []);
   const requests = useQuery({
     queryKey: maintenanceKeys.list({ search: search || undefined }),
     queryFn: () => api.listMaintenanceRequests({ search: search || undefined }),
@@ -140,6 +161,7 @@ function MaintenanceContent({ tenantView }: { tenantView: boolean }) {
         onOpenChange={setCreateOpen}
         leases={options.data?.leases ?? []}
         tenantView={tenantView}
+        draft={draft}
       />
       <AssignDialog
         request={assigning}
@@ -155,17 +177,26 @@ function RequestDialog({
   onOpenChange,
   leases,
   tenantView,
+  draft,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leases: Awaited<ReturnType<typeof api.listMaintenanceOptions>>['leases'];
   tenantView: boolean;
+  draft: { title: string; description: string; priority: MaintenancePriority };
 }) {
   const queryClient = useQueryClient();
   const [leaseId, setLeaseId] = useState('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<MaintenancePriority>('NORMAL');
+  const [title, setTitle] = useState(draft.title);
+  const [description, setDescription] = useState(draft.description);
+  const [priority, setPriority] = useState<MaintenancePriority>(draft.priority);
+
+  useEffect(() => {
+    if (!open) return;
+    setTitle(draft.title);
+    setDescription(draft.description);
+    setPriority(draft.priority);
+  }, [open, draft.title, draft.description, draft.priority]);
   const create = useMutation({
     mutationFn: () =>
       api.createMaintenanceRequest({ leaseId, title, description, priority }),

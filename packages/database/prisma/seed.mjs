@@ -27,7 +27,7 @@ const PORTFOLIO = [
     yearBuilt: 2016,
     notes: 'Elevator building with covered parking and on-site laundry.',
     imageUrl:
-      'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1400&q=80',
     ownerEmail: 'owner@demo.test',
     units: [
       ['1A', 1, 1, 620, 145000, 'OCCUPIED'],
@@ -45,7 +45,7 @@ const PORTFOLIO = [
     postalCode: '97005',
     yearBuilt: 2009,
     imageUrl:
-      'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1400&q=80',
     ownerEmail: 'owner@demo.test',
     units: [
       ['A', 3, 2.5, 1450, 269000, 'OCCUPIED'],
@@ -60,7 +60,7 @@ const PORTFOLIO = [
     state: 'OR',
     postalCode: '97103',
     imageUrl:
-      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1400&q=80',
     // Deliberately unassigned, so the OWNER role cannot see it.
     ownerEmail: null,
     units: [
@@ -68,6 +68,68 @@ const PORTFOLIO = [
       ['102', 1, 1, 700, 158000, 'OCCUPIED'],
       ['201', 2, 2, 1020, 224000, 'VACANT'],
     ],
+  },
+  {
+    name: 'Solace House',
+    type: 'SINGLE_FAMILY',
+    addressLine1: '18 Orchard Crest',
+    city: 'Lake Oswego',
+    state: 'OR',
+    postalCode: '97034',
+    yearBuilt: 2021,
+    notes: 'Quiet cul-de-sac home with a garden terrace and studio loft.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=80',
+    ownerEmail: 'owner@demo.test',
+    units: [['Main', 4, 3, 2480, 425000, 'VACANT']],
+  },
+  {
+    name: 'The Atelier',
+    type: 'APARTMENT',
+    addressLine1: '610 Pearl District',
+    city: 'Portland',
+    state: 'OR',
+    postalCode: '97209',
+    yearBuilt: 2018,
+    notes: 'Warehouse loft conversion with north light and concrete floors.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1400&q=80',
+    ownerEmail: 'owner@demo.test',
+    units: [
+      ['Loft 3', 1, 1, 820, 219000, 'VACANT'],
+      ['Loft 7', 2, 2, 1140, 289000, 'VACANT'],
+    ],
+  },
+  {
+    name: 'Riverglass Residences',
+    type: 'APARTMENT',
+    addressLine1: '90 Waterfront Drive',
+    city: 'Portland',
+    state: 'OR',
+    postalCode: '97201',
+    yearBuilt: 2020,
+    notes: 'River-facing glass residences with a shared terrace.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1400&q=80',
+    ownerEmail: null,
+    units: [
+      ['504', 1, 1, 690, 198000, 'VACANT'],
+      ['812', 2, 2, 1080, 276000, 'OCCUPIED'],
+    ],
+  },
+  {
+    name: 'Willow Lane Cottage',
+    type: 'SINGLE_FAMILY',
+    addressLine1: '4 Willow Lane',
+    city: 'Hood River',
+    state: 'OR',
+    postalCode: '97031',
+    yearBuilt: 1938,
+    notes: 'Restored cottage two blocks from the waterfront.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1400&q=80',
+    ownerEmail: 'owner@demo.test',
+    units: [['Cottage', 2, 1, 980, 234000, 'VACANT']],
   },
 ];
 
@@ -79,7 +141,13 @@ async function seedPortfolio(organizationId, usersByEmail) {
       where: { organizationId, name: property.name },
       select: { id: true },
     });
-    if (existing) continue;
+    if (existing) {
+      await prisma.property.update({
+        where: { id: existing.id },
+        data: { imageUrl: property.imageUrl, notes: property.notes },
+      });
+      continue;
+    }
 
     const { units, ownerEmail, ...fields } = property;
     await prisma.property.create({

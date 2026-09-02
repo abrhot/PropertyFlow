@@ -1,30 +1,82 @@
 # PropertyFlow Mobile (React Native + Expo)
 
-The mobile app for tenants, maintenance staff/vendors, and on-the-go managers.
-This folder is a placeholder — the Expo project hasn't been generated yet.
+The user-facing mobile app for **tenants**, **owners**, and on-the-go
+**maintenance** / **managers**. It reuses the monorepo's shared packages so the
+authentication, authorization (CASL), API contracts, and validation are exactly
+the same as the web app — only the UI layer is native.
 
-React Native (Expo) is used (instead of Flutter) so the app can share
-TypeScript types, validation, and business logic with the web app via the
-monorepo `packages/*` (see the PRD's technology-stack note).
+## What it reuses from the monorepo
 
-## Generate the app
-
-Install the Expo tooling, then from the repo root:
-
-```bash
-cd apps
-npx create-expo-app@latest mobile --template
-```
-
-Then wire it into the workspace and reuse the shared packages:
-
+- `@propertyflow/api-client` — typed SDK for the backend (mobile transport)
+- `@propertyflow/auth` — CASL ability model + rules (`buildAbility`, `accessibleSectionsFor`)
 - `@propertyflow/types` — API contracts (DTOs)
 - `@propertyflow/validation` — Zod form validation
-- `@propertyflow/api-client` — typed SDK for the backend
-- `@propertyflow/constants` — roles, statuses, enums
+- `@propertyflow/constants` — roles, statuses, labels
 
-## Planned scope
+The web UI package (`@propertyflow/ui`) is **not** reused — it's DOM/Tailwind.
+The mobile app has its own native components in `src/components` and shares the
+"cream + deep navy" look through `src/theme`.
 
-Role-aware login (tenant / staff / manager), rent payment, lease view,
-maintenance requests with photos, work-order updates, push notifications,
-and offline support with sync-on-reconnect.
+## Auth on mobile
+
+React Native has no httpOnly cookie jar, so the app uses the API client's
+**token transport**: the refresh token is returned in the login/refresh body and
+stored in the device keychain via `expo-secure-store`. The web app is unchanged
+and keeps using the httpOnly refresh cookie.
+
+On the first installation, `app/(auth)/welcome.tsx` shows the animated welcome
+flow and stores a non-sensitive completion flag. Later unauthenticated launches
+go directly to sign in. Reinstalling or clearing app storage shows onboarding
+again.
+
+## Run it
+
+From the repo root, first build the shared packages (Metro consumes their
+compiled `dist/`):
+
+```bash
+pnpm install
+pnpm --filter "./packages/*" build
+```
+
+Start the API + database (see the root README), then start Expo:
+
+```bash
+pnpm --filter @propertyflow/mobile start
+```
+
+Open it in Expo Go (scan the QR) or an emulator (press `a` / `i`).
+
+### API URL on a physical device
+
+`localhost` on a phone points at the phone itself. Set your machine's LAN IP:
+
+```bash
+# PowerShell
+$env:EXPO_PUBLIC_API_URL="http://192.168.1.20:3001"; pnpm --filter @propertyflow/mobile start
+```
+
+Or edit `expo.extra.apiUrl` in `app.json`. Make sure the API's CORS allows the
+Expo web origin (`MOBILE_WEB_ORIGIN`, default `http://localhost:8081`).
+
+## Demo accounts
+
+Same as web — one password for all: `Password123`
+
+- `tenant@demo.test` · `owner@demo.test` · `maintenance@demo.test`
+- `manager@demo.test` · `orgadmin@demo.test`
+
+## Screens
+
+Role-aware tab navigation (tabs hide based on CASL sections):
+
+- **Homes** — public discovery, listing details, and rent/buy inquiry
+- **Sign in / invitation** — secure login, workspace signup, and invite activation
+- **Home** — resident rent and open-request summary; technician jobs
+- **Rent** — next payment due + history, pay in one tap
+- **Help** — residents report and track requests; technicians update work orders
+- **Chat** — message the property team
+- **Me** — account, current home/lease, role, and sign out
+- **Notifications** — bell in the header, deep-links to the right screen
+
+The detailed package/runtime map is in `docs/mobile-architecture.md`.

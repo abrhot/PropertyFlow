@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { AbilityProvider } from '@/features/auth/ability-context';
 import { AuthProvider } from '@/features/auth/auth-context';
+import { AssistantProvider, PropertyFlowAssistant } from '@/components/propertyflow-assistant';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -26,7 +27,12 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AbilityProvider>{children}</AbilityProvider>
+        <AbilityProvider>
+          <AssistantProvider>
+            {children}
+            <PropertyFlowAssistant />
+          </AssistantProvider>
+        </AbilityProvider>
       </AuthProvider>
       <Toaster richColors position="top-center" />
     </QueryClientProvider>

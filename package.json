@@ -10,6 +10,10 @@
   "scripts": {
     "dev": "turbo run dev --concurrency=15",
     "dev:apps": "turbo run dev --filter=@propertyflow/web --filter=@propertyflow/api",
+    "dev:mobile": "pnpm --filter @propertyflow/mobile start",
+    "start:mobile": "pnpm --filter @propertyflow/mobile start",
+    "typecheck:mobile": "turbo run typecheck --filter=@propertyflow/mobile",
+    "build:mobile:web": "pnpm --filter @propertyflow/mobile export:web",
     "build": "turbo run build",
     "lint": "eslint .",
     "test": "turbo run test",

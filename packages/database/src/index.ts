@@ -21,4 +21,6 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
 
+/** Named re-exports so Nest can import the Prisma namespace (export * skips it). */
+export { Prisma, PrismaClient } from '@prisma/client';
 export * from '@prisma/client';

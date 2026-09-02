@@ -25,13 +25,13 @@
     "seed": "node prisma/seed.mjs"
   },
   "dependencies": {
-    "@prisma/client": "^6.2.1"
+    "@prisma/client": "6.2.1"
   },
   "devDependencies": {
     "@propertyflow/config": "workspace:*",
     "@types/node": "^22.10.5",
     "bcryptjs": "^2.4.3",
-    "prisma": "^6.2.1",
+    "prisma": "6.2.1",
     "typescript": "^5.7.3"
   }
 }

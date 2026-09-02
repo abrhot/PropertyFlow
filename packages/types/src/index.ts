@@ -856,6 +856,72 @@ export interface UpdateWorkOrderRequest {
   imageUrls?: string[];
 }
 
+export type AssistantCardKind = 'home' | 'metric' | 'lease' | 'workOrder';
+
+export interface AssistantFact {
+  label: string;
+  value: string;
+}
+
+export interface AssistantHomeCard {
+  kind: 'home';
+  unitId: ID;
+  title: string;
+  subtitle: string;
+  imageUrl: string | null;
+  href: string;
+  facts: AssistantFact[];
+}
+
+export interface AssistantMetricCard {
+  kind: 'metric';
+  label: string;
+  value: string;
+  hint?: string;
+  href?: string;
+}
+
+export interface AssistantLeaseCard {
+  kind: 'lease';
+  id: ID;
+  title: string;
+  href: string;
+  facts: AssistantFact[];
+}
+
+export interface AssistantWorkOrderCard {
+  kind: 'workOrder';
+  title: string;
+  description: string;
+  priority: MaintenancePriority;
+  href: string;
+  leaseId?: ID;
+}
+
+export type AssistantCard =
+  | AssistantHomeCard
+  | AssistantMetricCard
+  | AssistantLeaseCard
+  | AssistantWorkOrderCard;
+
+export interface AssistantAttachment {
+  mimeType: string;
+  data: string;
+}
+
+export interface AssistantChatRequest {
+  message: string;
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  attachment?: AssistantAttachment;
+}
+
+export interface AssistantChatResponse {
+  answer: string;
+  mode: 'public' | 'workspace';
+  contextUpdatedAt: string;
+  cards: AssistantCard[];
+}
+
 export type {
   ApplicationStatus,
   InvitableRole,

@@ -9,10 +9,29 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { RequireAbility } from '@/features/auth/require-ability';
 import { RequireAuth } from '@/features/auth/require-auth';
 import { DashboardShell } from '@/features/dashboard/dashboard-shell';
 import { api } from '@/lib/api';
+
+function interestFromNotes(notes: string | null) {
+  const match = notes?.match(/Interest:\s*(Rent|Buy)/i);
+  return match ? match[1] : '—';
+}
+
+function extraNotes(notes: string | null) {
+  if (!notes) return null;
+  const leftover = notes.replace(/Interest:\s*(Rent|Buy)\s*/i, '').trim();
+  return leftover || null;
+}
 
 function ApplicationsContent() {
   const queryClient = useQueryClient();
@@ -22,13 +41,16 @@ function ApplicationsContent() {
     queryFn: () => api.listApplications({ search: search || undefined }),
   });
   const update = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: ApplicationStatus }) => api.updateApplication(id, { status }),
+    mutationFn: ({ id, status }: { id: string; status: ApplicationStatus }) =>
+      api.updateApplication(id, { status }),
     onSuccess: async () => {
       toast.success('Application status updated');
       await queryClient.invalidateQueries({ queryKey: ['applications'] });
     },
   });
   const summary = applications.data?.summary;
+  const rows = applications.data?.applications ?? [];
+
   return (
     <DashboardShell title="Inquiries">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -56,64 +78,120 @@ function ApplicationsContent() {
             className="pl-9"
           />
         </div>
-        <div className="grid gap-4">
-          {applications.data?.applications.map((application) => (
-            <Card key={application.id}>
-              <CardContent className="grid gap-4 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold">{application.applicantName}</p>
-                    <Badge variant="secondary">{APPLICATION_STATUS_LABELS[application.status]}</Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {application.applicantEmail}
-                    {application.applicantPhone ? ` · ${application.applicantPhone}` : ''}
-                    {' · '}
-                    {application.unit.propertyName} · {application.unit.label}
-                  </p>
-                  {application.notes && (
-                    <p className="mt-2 whitespace-pre-wrap text-sm">{application.notes}</p>
-                  )}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Submitted {new Date(application.submittedAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <Select
-                  value={application.status}
-                  onValueChange={(status) =>
-                    update.mutate({ id: application.id, status: status as ApplicationStatus })
-                  }
-                >
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {APPLICATION_STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {APPLICATION_STATUS_LABELS[status]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
-          ))}
-          {!applications.isLoading && !applications.data?.applications.length && (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
+        <Card>
+          <CardContent className="pt-6">
+            {applications.isLoading ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">Loading inquiries…</p>
+            ) : rows.length === 0 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">
                 No inquiries yet. Prospects appear here after they submit from Available Homes.
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              </p>
+            ) : (
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Property</TableHead>
+                      <TableHead>Unit</TableHead>
+                      <TableHead>Interest</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead className="w-[180px]">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((application) => {
+                      const note = extraNotes(application.notes);
+                      return (
+                        <TableRow key={application.id}>
+                          <TableCell>
+                            <p className="font-medium">{application.applicantName}</p>
+                            {note ? (
+                              <p className="mt-0.5 max-w-[220px] truncate text-xs text-muted-foreground">
+                                {note}
+                              </p>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {application.applicantEmail}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {application.applicantPhone ?? '—'}
+                          </TableCell>
+                          <TableCell>{application.unit.propertyName}</TableCell>
+                          <TableCell>{application.unit.label}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{interestFromNotes(application.notes)}</Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {new Date(application.submittedAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={application.status}
+                              onValueChange={(status) =>
+                                update.mutate({
+                                  id: application.id,
+                                  status: status as ApplicationStatus,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-9 w-[160px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {APPLICATION_STATUSES.map((status) => (
+                                  <SelectItem key={status} value={status}>
+                                    {APPLICATION_STATUS_LABELS[status]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </DashboardShell>
   );
 }
 
-function Metric({ label, value, icon: Icon }: { label: string; value?: string | number; icon: typeof Users }) {
-  return <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardDescription>{label}</CardDescription><Icon className="h-4 w-4 text-primary" /></CardHeader><CardContent><CardTitle>{value ?? '—'}</CardTitle></CardContent></Card>;
+function Metric({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value?: string | number;
+  icon: typeof Users;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardDescription>{label}</CardDescription>
+        <Icon className="h-4 w-4 text-primary" />
+      </CardHeader>
+      <CardContent>
+        <CardTitle>{value ?? '—'}</CardTitle>
+      </CardContent>
+    </Card>
+  );
 }
+
 export function ApplicationsPage() {
-  return <RequireAuth><RequireAbility action="access" subject="applications"><ApplicationsContent /></RequireAbility></RequireAuth>;
+  return (
+    <RequireAuth>
+      <RequireAbility action="access" subject="applications">
+        <ApplicationsContent />
+      </RequireAbility>
+    </RequireAuth>
+  );
 }

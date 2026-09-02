@@ -21,7 +21,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -94,6 +94,13 @@ export function HomesPage() {
   });
 
   const rows = listings.data?.listings ?? [];
+
+  useEffect(() => {
+    const unitId = new URLSearchParams(window.location.search).get('unit');
+    if (!unitId || detail) return;
+    const found = rows.find((row) => row.unitId === unitId);
+    if (found) setDetail(found);
+  }, [rows, detail]);
   const stats = useMemo(() => {
     const cities = new Set(rows.map((row) => row.city));
     const avgSqft =

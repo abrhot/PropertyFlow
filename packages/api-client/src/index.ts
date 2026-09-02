@@ -92,7 +92,28 @@ import type {
   WorkOrderListResponse,
   WorkOrderStatus,
   AssignWorkOrderRequest,
+  AssistantAttachment,
+  AssistantCard,
+  AssistantChatResponse,
 } from '@propertyflow/types';
+
+export type {
+  AssistantAttachment,
+  AssistantCard,
+  AssistantChatRequest,
+  AssistantChatResponse,
+  AssistantFact,
+  AssistantHomeCard,
+  AssistantLeaseCard,
+  AssistantMetricCard,
+  AssistantWorkOrderCard,
+} from '@propertyflow/types';
+
+export interface AssistantChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  cards?: AssistantCard[];
+}
 
 export interface ListPropertiesParams {
   search?: string;
@@ -196,6 +217,18 @@ export class ApiClient {
     this.onAccessTokenChange?.(token);
   }
 
+  /**
+   * Repoints the client at a different API origin at runtime. Mobile uses this
+   * so a device can be aimed at a new LAN address without a rebuild.
+   */
+  setBaseUrl(baseUrl: string): void {
+    this.baseUrl = baseUrl.replace(/\/$/, '');
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
   getAccessToken(): string | null {
     return this.accessToken;
   }
@@ -231,11 +264,17 @@ export class ApiClient {
     // Signals the API to return the refresh token in the body instead of a cookie.
     if (this.isMobile) headers.set('X-Client-Type', 'mobile');
 
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      ...init,
-      headers,
-      credentials: 'include', // web: send/receive the httpOnly refresh cookie (no-op on RN)
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}${path}`, {
+        ...init,
+        headers,
+        credentials: 'include', // web: send/receive the httpOnly refresh cookie (no-op on RN)
+      });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'Network request failed';
+      throw new ApiError(0, `Network request failed (${detail})`, { path, baseUrl: this.baseUrl });
+    }
 
     if (res.status === 401 && retryOn401 && path !== '/auth/refresh') {
       const refreshed = await this.tryRefresh();
@@ -246,9 +285,11 @@ export class ApiClient {
     const body = isJson ? await res.json().catch(() => undefined) : undefined;
 
     if (!res.ok) {
-      const message =
-        (body && typeof body === 'object' && 'message' in body && String(body.message)) ||
-        `Request failed with status ${res.status}`;
+      const rawMessage =
+        body && typeof body === 'object' && 'message' in body ? (body as { message: unknown }).message : undefined;
+      const message = Array.isArray(rawMessage)
+        ? rawMessage.join(', ')
+        : (typeof rawMessage === 'string' && rawMessage) || `Request failed with status ${res.status}`;
       throw new ApiError(res.status, message, body);
     }
 
@@ -645,6 +686,21 @@ export class ApiClient {
     return this.request(`/conversations/${encodeURIComponent(conversationId)}/messages`, {
       method: 'POST',
       body: JSON.stringify(input),
+    });
+  }
+
+  chatWithAssistant(input: {
+    message: string;
+    history?: AssistantChatMessage[];
+    attachment?: AssistantAttachment;
+  }): Promise<AssistantChatResponse> {
+    return this.request('/assistant/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        message: input.message,
+        history: input.history?.map(({ role, content }) => ({ role, content })),
+        attachment: input.attachment,
+      }),
     });
   }
 

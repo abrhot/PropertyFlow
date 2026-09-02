@@ -5,6 +5,7 @@ export const envSchema = z.object({
   PORT: z.coerce.number().default(3001),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   WEB_ORIGIN: z.string().url().default('http://localhost:3000'),
+  MOBILE_WEB_ORIGIN: z.string().url().default('http://localhost:8081'),
   DATABASE_URL: z.string().min(1),
   JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be at least 16 chars'),
   JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be at least 16 chars'),
@@ -16,6 +17,9 @@ export const envSchema = z.object({
     .transform((v) => v === 'true'),
   COOKIE_DOMAIN: z.string().default('localhost'),
   REDIS_URL: z.string().optional(),
+  GEMINI_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash-lite'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -23,6 +23,7 @@ import { AbilityService } from '../authorization/ability.service';
 import { buildingScope } from '../authorization/building-scope';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import {
   assertCanAccessPayment,
   canAccessPayment,
@@ -71,6 +72,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly abilities: AbilityService,
     private readonly notifications: NotificationsService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   private get db(): PrismaClient {
@@ -183,6 +185,7 @@ export class PaymentsService {
         linkPath: '/dashboard/my-payments',
       });
     }
+    this.realtime.emitToOrganization(record.organizationId, 'payment.created', toPayment(record));
     return toPayment(record);
   }
 
@@ -213,6 +216,7 @@ export class PaymentsService {
       },
       select: PAYMENT_SELECT,
     });
+    this.realtime.emitToOrganization(updated.organizationId, 'payment.updated', toPayment(updated));
     return toPayment(updated);
   }
 
@@ -247,6 +251,7 @@ export class PaymentsService {
       },
       user.id,
     );
+    this.realtime.emitToOrganization(updated.organizationId, 'payment.updated', toPayment(updated));
     return toPayment(updated);
   }
 

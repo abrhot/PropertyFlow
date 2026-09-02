@@ -5,33 +5,43 @@
     "scheme": "propertyflow",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#F6F1E7"
+      "backgroundColor": "#F7F3EA"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.propertyflow.mobile"
     },
     "android": {
       "package": "com.propertyflow.mobile",
+      "softwareKeyboardLayoutMode": "pan",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#F6F1E7"
+        "backgroundColor": "#F7F3EA"
       }
     },
     "web": {
       "bundler": "metro",
       "output": "single"
     },
-    "plugins": ["expo-router", "expo-secure-store"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-system-ui",
+      "expo-asset",
+      "expo-font"
+    ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "http://localhost:3001"
+      "apiUrl": "http://192.168.1.2:3001"
     }
   }
 }

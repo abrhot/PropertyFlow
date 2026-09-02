@@ -1,7 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { buildAbility, accessibleSectionsFor, type AppAbility } from '@propertyflow/auth';
 import type { AppSection } from '@propertyflow/constants';
-import type { AbilityRule, AuthUser } from '@propertyflow/types';
+import type {
+  AcceptInvitationRequest,
+  AbilityRule,
+  AuthUser,
+  RegisterRequest,
+} from '@propertyflow/types';
 import { api } from '@/lib/api';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -12,6 +17,9 @@ interface AuthContextValue {
   ability: AppAbility;
   sections: AppSection[];
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (input: RegisterRequest) => Promise<void>;
+  acceptInvitation: (input: AcceptInvitationRequest) => Promise<void>;
+  updateUser: (patch: Partial<AuthUser>) => void;
   signOut: () => Promise<void>;
 }
 
@@ -38,8 +46,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Restore a session from the secure store on launch.
+  // A dead LAN address must not pin the splash forever — Expo Go looks "stuck".
   useEffect(() => {
     let active = true;
+    const failOpen = setTimeout(() => {
+      if (active) clearSession();
+    }, 5000);
     (async () => {
       try {
         const restored = await api.bootstrap();
@@ -50,10 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         applySession(session.user, session.abilityRules);
       } catch {
         if (active) clearSession();
+      } finally {
+        clearTimeout(failOpen);
       }
     })();
     return () => {
       active = false;
+      clearTimeout(failOpen);
     };
   }, [applySession, clearSession]);
 
@@ -64,6 +79,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     [applySession],
   );
+
+  const signUp = useCallback(
+    async (input: RegisterRequest) => {
+      const res = await api.register(input);
+      applySession(res.user, res.abilityRules);
+    },
+    [applySession],
+  );
+
+  const acceptInvitation = useCallback(
+    async (input: AcceptInvitationRequest) => {
+      const res = await api.acceptInvitation(input);
+      applySession(res.user, res.abilityRules);
+    },
+    [applySession],
+  );
+
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
 
   const signOut = useCallback(async () => {
     try {
@@ -77,8 +112,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const sections = useMemo(() => accessibleSectionsFor(ability), [ability]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, ability, sections, signIn, signOut }),
-    [status, user, ability, sections, signIn, signOut],
+    () => ({
+      status,
+      user,
+      ability,
+      sections,
+      signIn,
+      signUp,
+      acceptInvitation,
+      updateUser,
+      signOut,
+    }),
+    [status, user, ability, sections, signIn, signUp, acceptInvitation, updateUser, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
