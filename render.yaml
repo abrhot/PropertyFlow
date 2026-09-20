@@ -1,16 +1,25 @@
-# Render Blueprint for the PropertyFlow API.
+# Render Blueprint for the PropertyFlow API and its database.
 #
-# The web app is deployed separately on Vercel (root directory apps/web) and the
-# database is a free Neon project, so this file describes the NestJS API alone.
+# The web app is deployed separately on Vercel (root directory apps/web); this
+# file covers the NestJS API and the Postgres instance it talks to.
 #
-# Migrations are applied from a developer machine against the Neon connection
-# string rather than from a preDeployCommand, because pre-deploy is not
-# guaranteed on free instances and Neon is reachable from anywhere:
+# Migrations are applied from a developer machine against the database's
+# *external* connection string (copy it from the Render dashboard) rather than
+# from a preDeployCommand, which is not guaranteed on free instances:
 #
 #   pnpm --filter @propertyflow/database db:deploy
 #
-# Frankfurt is the closest available region to Ethiopia; create the Neon project
-# in eu-central-1 so the API and the database are not on different continents.
+# Frankfurt is the closest available region to Ethiopia, and the API and the
+# database must share a region to talk over the private network.
+#
+# NOTE: a free Render Postgres is deleted 30 days after creation (plus a 14-day
+# grace period). Upgrade it before then if this needs to outlive the demo.
+databases:
+  - name: propertyflow-db
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: '17'
+
 services:
   - type: web
     name: propertyflow-api
@@ -25,10 +34,11 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Neon connection string — use the DIRECT (unpooled) URL so Prisma
-      # migrations work, and keep ?sslmode=require.
+      # Wired automatically to the database declared above — nothing to paste.
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: propertyflow-db
+          property: connectionString
       # Set to the Vercel URL once the web app exists. CORS rejects every
       # browser request until this matches exactly, scheme included.
       - key: WEB_ORIGIN
