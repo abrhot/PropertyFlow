@@ -8,6 +8,18 @@ financial reporting.
 > See [`docs/requirements.md`](docs/requirements.md) for the product spec and
 > [`docs/architecture.md`](docs/architecture.md) for how it's built.
 
+## Deploy the backend
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/abrhot/PropertyFlow)
+
+Creates the API and its Postgres instance from [`render.yaml`](render.yaml).
+Only `WEB_ORIGIN` (the deployed web app's URL) and an optional
+`OPENAI_API_KEY` are prompted for; everything else, including the database
+connection and the JWT secrets, is wired up automatically.
+
+The web app deploys separately on Vercel with the root directory set to
+`apps/web` — see [`docs/deployment.md`](docs/deployment.md).
+
 ## Tech stack
 
 Next.js · NestJS · React Native (Expo) · PostgreSQL + Prisma · Redis ·
