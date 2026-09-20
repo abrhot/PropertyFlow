@@ -3,16 +3,50 @@
 import type { AppSection } from '@propertyflow/constants';
 import { ROLE_LABELS } from '@propertyflow/constants';
 import { Building2, Bot, LogOut, Menu } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Button } from '@/components/ui/button';
-import { useAssistant, AssistantPanel } from '@/components/propertyflow-assistant';
+import { useAssistant } from '@/components/propertyflow-assistant';
 import { useAccessibleSections } from '@/features/auth/ability-context';
 import { useAuth } from '@/features/auth/auth-context';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 import { cn } from '@/lib/utils';
 import { SECTION_META } from './sections';
+
+const AssistantPanel = dynamic(
+  () => import('@/components/propertyflow-assistant').then((mod) => mod.AssistantPanel),
+  { ssr: false },
+);
+
+const ShellTitleContext = createContext<(title: string) => void>(() => {});
+
+function titleFromPath(pathname: string): string {
+  const exact = Object.values(SECTION_META).find((item) => item.path === pathname);
+  if (exact) return exact.label;
+  if (pathname.startsWith('/dashboard/properties/')) return 'Property';
+  const prefix = Object.values(SECTION_META)
+    .filter((item) => item.path !== '/dashboard' && pathname.startsWith(`${item.path}/`))
+    .sort((a, b) => b.path.length - a.path.length)[0];
+  return prefix?.label ?? 'Dashboard';
+}
+
+/** Pages keep this wrapper so they can set the header title without remounting the chrome. */
+export function DashboardShell({ title, children }: { title: string; children: ReactNode }) {
+  const setTitle = useContext(ShellTitleContext);
+  useEffect(() => {
+    setTitle(title);
+    return () => setTitle('');
+  }, [setTitle, title]);
+  return <>{children}</>;
+}
 
 const COLLAPSE_KEY = 'pf-nav-collapsed';
 
@@ -46,6 +80,7 @@ function NavItem({
   return (
     <Link
       href={item.path}
+      prefetch={false}
       title={collapsed ? item.label : undefined}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
@@ -91,6 +126,7 @@ function MobileNav({
           <Link
             key={key}
             href={item.path}
+            prefetch={false}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               'flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
@@ -124,13 +160,18 @@ function MobileNav({
   );
 }
 
-export function DashboardShell({ title, children }: { title: string; children: ReactNode }) {
+export function DashboardFrame({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const { open: assistantOpen, setOpen: setAssistantOpen } = useAssistant();
   const router = useRouter();
   const pathname = usePathname();
   const sections = useAccessibleSections();
   const [collapsed, setCollapsed] = useState(false);
+  const [title, setTitle] = useState(() => titleFromPath(pathname));
+
+  useEffect(() => {
+    setTitle(titleFromPath(pathname));
+  }, [pathname]);
 
   useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSE_KEY) === '1');
@@ -150,6 +191,7 @@ export function DashboardShell({ title, children }: { title: string; children: R
   }
 
   return (
+    <ShellTitleContext.Provider value={setTitle}>
     <div className="flex min-h-screen">
       {/* Sidebar — tailored to the signed-in role. Collapses to an icon rail. */}
       <aside
@@ -297,5 +339,6 @@ export function DashboardShell({ title, children }: { title: string; children: R
         </div>
       ) : null}
     </div>
+    </ShellTitleContext.Provider>
   );
 }

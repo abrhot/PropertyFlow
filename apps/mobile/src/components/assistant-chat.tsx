@@ -28,7 +28,16 @@ const STARTERS = [
   { label: 'Available homes', message: 'How many available homes do we have?' },
   { label: 'Dashboard', message: 'How is the dashboard looking?' },
   { label: 'My lease', message: 'Explain my lease' },
-  { label: 'Report a repair', message: 'The kitchen sink is leaking' },
+];
+
+/** Shown after "Report a repair" so the resident picks the real problem instead of a canned one. */
+const REPAIR_ISSUES = [
+  'A faucet or pipe is leaking',
+  'No hot water',
+  'Heating or cooling is not working',
+  'A drain or toilet is clogged',
+  'An outlet or light stopped working',
+  'An appliance is broken',
 ];
 
 function useKeyboardHeight() {
@@ -67,13 +76,14 @@ export function AssistantChat() {
   const roleLabel = user ? ROLE_LABELS[user.role] : undefined;
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
-  const [messages, setMessages] = useState<AssistantChatMessage[]>(() => [
-    welcomeFor(false),
-  ]);
+  const [pickingRepair, setPickingRepair] = useState(false);
+  const [messages, setMessages] = useState<AssistantChatMessage[]>(() => [welcomeFor(false)]);
   const scroller = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
 
-  const thread = Array.isArray(messages) ? messages : [welcomeFor(signedIn, user?.fullName, roleLabel)];
+  const thread = Array.isArray(messages)
+    ? messages
+    : [welcomeFor(signedIn, user?.fullName, roleLabel)];
 
   useEffect(() => {
     setMessages((current) => {
@@ -91,6 +101,7 @@ export function AssistantChat() {
   async function send(preset?: string) {
     const message = (preset ?? draft).trim();
     if (!message || busy) return;
+    setPickingRepair(false);
     const next = [...thread, { role: 'user' as const, content: message }];
     setMessages(next);
     setDraft('');
@@ -161,23 +172,88 @@ export function AssistantChat() {
           </View>
         ) : null}
         {thread.length === 1 && !busy ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {STARTERS.map((item) => (
+          <View style={{ gap: spacing.sm }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {STARTERS.map((item) => (
+                <Pressable
+                  key={item.label}
+                  onPress={() => void send(item.message)}
+                  style={{
+                    borderRadius: radius.pill,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    backgroundColor: colors.surface,
+                  }}
+                >
+                  <AppText variant="caption">{item.label}</AppText>
+                </Pressable>
+              ))}
               <Pressable
-                key={item.label}
-                onPress={() => void send(item.message)}
+                onPress={() => setPickingRepair((value) => !value)}
                 style={{
                   borderRadius: radius.pill,
                   borderWidth: 1,
-                  borderColor: colors.border,
+                  borderColor: pickingRepair ? colors.primary : colors.border,
                   paddingHorizontal: 12,
                   paddingVertical: 8,
                   backgroundColor: colors.surface,
                 }}
               >
-                <AppText variant="caption">{item.label}</AppText>
+                <AppText variant="caption">Report a repair</AppText>
               </Pressable>
-            ))}
+            </View>
+            {pickingRepair ? (
+              <View
+                style={{
+                  gap: 8,
+                  borderRadius: radius.lg,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  padding: spacing.md,
+                }}
+              >
+                <AppText variant="caption" color={colors.textMuted}>
+                  Pick what is going on and I will draft the work order.
+                </AppText>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {REPAIR_ISSUES.map((issue) => (
+                    <Pressable
+                      key={issue}
+                      onPress={() => void send(`Repair needed: ${issue}`)}
+                      style={{
+                        borderRadius: radius.pill,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        backgroundColor: colors.input,
+                      }}
+                    >
+                      <AppText variant="caption">{issue}</AppText>
+                    </Pressable>
+                  ))}
+                  <Pressable
+                    onPress={() => {
+                      setPickingRepair(false);
+                      inputRef.current?.focus();
+                    }}
+                    style={{
+                      borderRadius: radius.pill,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      backgroundColor: colors.input,
+                    }}
+                  >
+                    <AppText variant="caption">Something else…</AppText>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
           </View>
         ) : null}
       </ScrollView>
@@ -390,7 +466,13 @@ function WorkOrderCard({ card }: { card: Extract<AssistantCard, { kind: 'workOrd
       ) : (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {card.leaseId ? (
-            <Button label="Submit request" compact inline loading={busy} onPress={() => void submit()} />
+            <Button
+              label="Submit request"
+              compact
+              inline
+              loading={busy}
+              onPress={() => void submit()}
+            />
           ) : null}
           <Button
             label="Open form"

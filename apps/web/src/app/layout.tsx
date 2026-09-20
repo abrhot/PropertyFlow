@@ -9,6 +9,7 @@ const inter = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap',
+  fallback: ['system-ui', 'Segoe UI', 'sans-serif'],
 });
 
 export const metadata: Metadata = {
@@ -18,6 +19,9 @@ export const metadata: Metadata = {
     template: '%s · PropertyFlow',
   },
   description: 'A premium, multi-tenant property management platform.',
+  icons: {
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+  },
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,

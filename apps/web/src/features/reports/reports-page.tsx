@@ -23,9 +23,17 @@ import { Input } from '@/components/ui/input';
 import { RequireAbility } from '@/features/auth/require-ability';
 import { RequireAuth } from '@/features/auth/require-auth';
 import { DashboardShell } from '@/features/dashboard/dashboard-shell';
-import { TrendChart } from '@/features/dashboard/trend-chart';
 import { formatCents } from '@/features/properties/format';
 import { api } from '@/lib/api';
+import dynamic from 'next/dynamic';
+
+const TrendChart = dynamic(
+  () => import('@/features/dashboard/trend-chart').then((mod) => mod.TrendChart),
+  {
+    ssr: false,
+    loading: () => <div className="h-[280px] animate-pulse rounded-lg bg-muted" />,
+  },
+);
 
 const occupancyChartConfig = {
   occupancy: { label: 'Occupancy', color: 'hsl(var(--primary))' },

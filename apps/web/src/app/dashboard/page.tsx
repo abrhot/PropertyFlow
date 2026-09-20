@@ -12,9 +12,18 @@ import { useAuth } from '@/features/auth/auth-context';
 import { RequireAuth } from '@/features/auth/require-auth';
 import { DashboardShell } from '@/features/dashboard/dashboard-shell';
 import { SECTION_META } from '@/features/dashboard/sections';
-import { RangeToggle, rangeDays, TrendChart, type RangeKey } from '@/features/dashboard/trend-chart';
+import { RangeToggle, rangeDays, type RangeKey } from '@/features/dashboard/range-toggle';
+import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
 import type { DashboardMetric } from '@propertyflow/types';
+
+const TrendChart = dynamic(
+  () => import('@/features/dashboard/trend-chart').then((mod) => mod.TrendChart),
+  {
+    ssr: false,
+    loading: () => <div className="h-[280px] animate-pulse rounded-lg bg-muted" />,
+  },
+);
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
 
@@ -90,6 +99,7 @@ function DashboardContent() {
                   <Link
                     key={key}
                     href={item.path}
+                    prefetch={false}
                     className="group flex items-center gap-3 rounded-lg border border-transparent p-3 transition-colors hover:border-border hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">

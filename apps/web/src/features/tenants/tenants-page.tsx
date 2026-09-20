@@ -39,15 +39,18 @@ import { RequireAuth } from '@/features/auth/require-auth';
 import { DashboardShell } from '@/features/dashboard/dashboard-shell';
 import { formatCents } from '@/features/properties/format';
 import { api } from '@/lib/api';
+import { useDebounced } from '@/lib/use-debounced';
 
 function TenantsContent() {
   const ability = useAbility();
   const canAdd = ability.can('create', 'User');
   const [search, setSearch] = useState('');
+  const deferredSearch = useDebounced(search);
   const [addOpen, setAddOpen] = useState(false);
   const tenants = useQuery({
-    queryKey: ['tenants', search],
-    queryFn: () => api.listTenants({ search: search || undefined }),
+    queryKey: ['tenants', deferredSearch],
+    queryFn: () => api.listTenants({ search: deferredSearch || undefined }),
+    placeholderData: (previous) => previous,
   });
   const summary = tenants.data?.summary;
   return (

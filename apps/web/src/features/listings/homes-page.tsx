@@ -37,11 +37,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
+import { useDebounced } from '@/lib/use-debounced';
 
 const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1800&q=80';
+  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=60';
 const FALLBACK_IMAGE =
-  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80';
+  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=60';
 
 const DELIVERABLES = [
   {
@@ -87,10 +88,12 @@ export function HomesPage() {
     interest: ListingInterest;
   } | null>(null);
 
+  const deferredSearch = useDebounced(search);
   const listings = useQuery({
-    queryKey: ['public-listings', search],
-    queryFn: () => api.listPublicListings({ search: search || undefined }),
+    queryKey: ['public-listings', deferredSearch],
+    queryFn: () => api.listPublicListings({ search: deferredSearch || undefined }),
     staleTime: 60_000,
+    placeholderData: (previous) => previous,
   });
 
   const rows = listings.data?.listings ?? [];
@@ -146,6 +149,8 @@ export function HomesPage() {
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
           aria-hidden="true"
+          fetchPriority="high"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-black/20" />
         <div className="relative mx-auto flex min-h-[78vh] max-w-6xl flex-col justify-end px-4 pb-16 pt-28 sm:px-6 sm:pb-20">

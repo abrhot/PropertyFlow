@@ -29,6 +29,10 @@ pnpm-debug.log*
 # Testing / coverage
 coverage/
 
+# Internship report — personal documents, kept out of this public repo
+docs/intern report/
+~$*.docx
+
 # Editors / OS
 .vscode/*
 !.vscode/extensions.json

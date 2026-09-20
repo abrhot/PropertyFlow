@@ -37,16 +37,19 @@ import { RequireAbility } from '@/features/auth/require-ability';
 import { RequireAuth } from '@/features/auth/require-auth';
 import { DashboardShell } from '@/features/dashboard/dashboard-shell';
 import { api } from '@/lib/api';
+import { useDebounced } from '@/lib/use-debounced';
 import { maintenanceKeys, workOrderKeys } from './queries';
 
 function WorkOrdersContent() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const deferredSearch = useDebounced(search);
   const [completing, setCompleting] = useState<WorkOrder | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const orders = useQuery({
-    queryKey: workOrderKeys.list({ search: search || undefined }),
-    queryFn: () => api.listWorkOrders({ search: search || undefined }),
+    queryKey: workOrderKeys.list({ search: deferredSearch || undefined }),
+    queryFn: () => api.listWorkOrders({ search: deferredSearch || undefined }),
+    placeholderData: (previous) => previous,
   });
   const start = useMutation({
     mutationFn: (id: string) => api.updateWorkOrder(id, { status: 'IN_PROGRESS' }),

@@ -21,6 +21,7 @@ import { RequireAbility } from '@/features/auth/require-ability';
 import { RequireAuth } from '@/features/auth/require-auth';
 import { DashboardShell } from '@/features/dashboard/dashboard-shell';
 import { api } from '@/lib/api';
+import { useDebounced } from '@/lib/use-debounced';
 
 function interestFromNotes(notes: string | null) {
   const match = notes?.match(/Interest:\s*(Rent|Buy)/i);
@@ -36,9 +37,11 @@ function extraNotes(notes: string | null) {
 function ApplicationsContent() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const deferredSearch = useDebounced(search);
   const applications = useQuery({
-    queryKey: ['applications', search],
-    queryFn: () => api.listApplications({ search: search || undefined }),
+    queryKey: ['applications', deferredSearch],
+    queryFn: () => api.listApplications({ search: deferredSearch || undefined }),
+    placeholderData: (previous) => previous,
   });
   const update = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ApplicationStatus }) =>

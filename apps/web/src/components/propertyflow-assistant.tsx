@@ -38,7 +38,16 @@ const STARTERS = [
   { label: 'Available homes', message: 'How many available homes do we have?' },
   { label: 'Dashboard', message: 'How is the dashboard looking?' },
   { label: 'My lease', message: 'Explain my lease' },
-  { label: 'Report a repair', message: 'The kitchen sink is leaking' },
+];
+
+/** Shown after "Report a repair" so the resident picks the real problem instead of a canned one. */
+const REPAIR_ISSUES = [
+  'A faucet or pipe is leaking',
+  'No hot water',
+  'Heating or cooling is not working',
+  'A drain or toilet is clogged',
+  'An outlet or light stopped working',
+  'An appliance is broken',
 ];
 
 interface AssistantContextValue {
@@ -56,7 +65,9 @@ export function useAssistant() {
 
 export function AssistantProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  return <AssistantUiContext.Provider value={{ open, setOpen }}>{children}</AssistantUiContext.Provider>;
+  return (
+    <AssistantUiContext.Provider value={{ open, setOpen }}>{children}</AssistantUiContext.Provider>
+  );
 }
 
 export function AssistantPanel({
@@ -71,8 +82,10 @@ export function AssistantPanel({
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [messages, setMessages] = useState<AssistantChatMessage[]>([WELCOME]);
+  const [pickingRepair, setPickingRepair] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' });
@@ -82,8 +95,16 @@ export function AssistantPanel({
     async (preset?: string) => {
       const message = (preset ?? draft).trim();
       if ((!message && !file) || busy) return;
-      const text = message || (file ? `Please review this ${file.type.startsWith('video') ? 'video' : file.type === 'application/pdf' ? 'document' : 'photo'}.` : '');
-      const next = [...messages, { role: 'user' as const, content: file ? `${text}\n[${file.name}]` : text }];
+      setPickingRepair(false);
+      const text =
+        message ||
+        (file
+          ? `Please review this ${file.type.startsWith('video') ? 'video' : file.type === 'application/pdf' ? 'document' : 'photo'}.`
+          : '');
+      const next = [
+        ...messages,
+        { role: 'user' as const, content: file ? `${text}\n[${file.name}]` : text },
+      ];
       setMessages(next);
       setDraft('');
       setBusy(true);
@@ -127,10 +148,17 @@ export function AssistantPanel({
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold leading-tight">Assistant</p>
-            <p className="truncate text-xs text-muted-foreground">Homes, leases, repairs, dashboard</p>
+            <p className="truncate text-xs text-muted-foreground">
+              Homes, leases, repairs, dashboard
+            </p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label="Close assistant">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setOpen(false)}
+          aria-label="Close assistant"
+        >
           <X className="h-4 w-4" />
         </Button>
       </header>
@@ -157,17 +185,61 @@ export function AssistantPanel({
           </div>
         ) : null}
         {messages.length === 1 && !busy ? (
-          <div className="flex flex-wrap gap-1.5">
-            {STARTERS.map((item) => (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              {STARTERS.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  className="rounded-full border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-foreground"
+                  onClick={() => void send(item.message)}
+                >
+                  {item.label}
+                </button>
+              ))}
               <button
-                key={item.label}
                 type="button"
-                className="rounded-full border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-foreground"
-                onClick={() => void send(item.message)}
+                aria-expanded={pickingRepair}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-[11px] hover:border-primary hover:text-foreground',
+                  pickingRepair
+                    ? 'border-primary bg-background text-foreground'
+                    : 'bg-background text-muted-foreground',
+                )}
+                onClick={() => setPickingRepair((value) => !value)}
               >
-                {item.label}
+                Report a repair
               </button>
-            ))}
+            </div>
+            {pickingRepair ? (
+              <div className="space-y-1.5 rounded-xl border bg-background p-2.5">
+                <p className="text-[11px] text-muted-foreground">
+                  Pick what is going on and I will draft the work order.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {REPAIR_ISSUES.map((issue) => (
+                    <button
+                      key={issue}
+                      type="button"
+                      className="rounded-full border bg-card px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-foreground"
+                      onClick={() => void send(`Repair needed: ${issue}`)}
+                    >
+                      {issue}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="rounded-full border bg-card px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-foreground"
+                    onClick={() => {
+                      setPickingRepair(false);
+                      input.current?.focus();
+                    }}
+                  >
+                    Something else…
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -214,13 +286,19 @@ export function AssistantPanel({
             <ImagePlus className="h-4 w-4" />
           </Button>
           <Input
+            ref={input}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Ask, or attach a photo…"
             aria-label="Message assistant"
             autoComplete="off"
           />
-          <Button type="submit" size="icon" disabled={busy || (!draft.trim() && !file)} aria-label="Send message">
+          <Button
+            type="submit"
+            size="icon"
+            disabled={busy || (!draft.trim() && !file)}
+            aria-label="Send message"
+          >
             <Send className="h-4 w-4" />
           </Button>
         </div>
@@ -272,7 +350,10 @@ function AssistantCardView({ card }: { card: AssistantCard }) {
 
   if (card.kind === 'metric') {
     return (
-      <Link href={card.href || '/dashboard'} className="flex items-center gap-3 rounded-xl border bg-background px-3 py-2.5">
+      <Link
+        href={card.href || '/dashboard'}
+        className="flex items-center gap-3 rounded-xl border bg-background px-3 py-2.5"
+      >
         <LayoutDashboard className="h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0">
           <p className="text-[11px] text-muted-foreground">{card.label}</p>

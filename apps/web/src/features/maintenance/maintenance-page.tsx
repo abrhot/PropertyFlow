@@ -50,10 +50,12 @@ import { RequireAbility } from '@/features/auth/require-ability';
 import { RequireAuth } from '@/features/auth/require-auth';
 import { DashboardShell } from '@/features/dashboard/dashboard-shell';
 import { api } from '@/lib/api';
+import { useDebounced } from '@/lib/use-debounced';
 import { maintenanceKeys, workOrderKeys } from './queries';
 
 function MaintenanceContent({ tenantView }: { tenantView: boolean }) {
   const [search, setSearch] = useState('');
+  const deferredSearch = useDebounced(search);
   const [createOpen, setCreateOpen] = useState(false);
   const [assigning, setAssigning] = useState<MaintenanceRequest | null>(null);
   const [draft, setDraft] = useState<{ title: string; description: string; priority: MaintenancePriority }>({
@@ -78,8 +80,9 @@ function MaintenanceContent({ tenantView }: { tenantView: boolean }) {
     setCreateOpen(true);
   }, []);
   const requests = useQuery({
-    queryKey: maintenanceKeys.list({ search: search || undefined }),
-    queryFn: () => api.listMaintenanceRequests({ search: search || undefined }),
+    queryKey: maintenanceKeys.list({ search: deferredSearch || undefined }),
+    queryFn: () => api.listMaintenanceRequests({ search: deferredSearch || undefined }),
+    placeholderData: (previous) => previous,
   });
   const options = useQuery({
     queryKey: maintenanceKeys.options(),

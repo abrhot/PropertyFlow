@@ -41,7 +41,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     retry: false,
+    refetchOnMount: false,
   });
 
   const loginMutation = useMutation({

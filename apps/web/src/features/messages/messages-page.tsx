@@ -41,6 +41,7 @@ import { RequireAuth } from '@/features/auth/require-auth';
 import { DashboardShell } from '@/features/dashboard/dashboard-shell';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { useDebounced } from '@/lib/use-debounced';
 import { messageKeys } from './queries';
 
 function initials(text: string): string {
@@ -68,12 +69,14 @@ function MessagesContent() {
   /** Only admin/manager message residents; tenants message management. */
   const isStaff = user?.role === 'ORG_ADMIN' || user?.role === 'PROPERTY_MANAGER';
   const [search, setSearch] = useState('');
+  const deferredSearch = useDebounced(search);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
 
   const conversations = useQuery({
-    queryKey: messageKeys.list(search),
-    queryFn: () => api.listConversations({ search: search || undefined }),
+    queryKey: messageKeys.list(deferredSearch),
+    queryFn: () => api.listConversations({ search: deferredSearch || undefined }),
+    placeholderData: (previous) => previous,
   });
 
   const list = conversations.data?.conversations ?? [];
