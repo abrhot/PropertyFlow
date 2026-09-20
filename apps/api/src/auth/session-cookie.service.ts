@@ -59,9 +59,9 @@ export class SessionCookieService {
   private refreshOptions(maxAge: number) {
     return {
       httpOnly: true,
-      secure: this.config.get('COOKIE_SECURE', { infer: true }),
-      sameSite: 'lax' as const,
-      domain: this.config.get('COOKIE_DOMAIN', { infer: true }),
+      secure: this.secure(),
+      sameSite: this.sameSite(),
+      domain: this.cookieDomain(),
       path: '/api/auth',
       maxAge,
     };
@@ -70,11 +70,37 @@ export class SessionCookieService {
   private hintOptions(maxAge: number) {
     return {
       httpOnly: false,
-      secure: this.config.get('COOKIE_SECURE', { infer: true }),
-      sameSite: 'lax' as const,
-      domain: this.config.get('COOKIE_DOMAIN', { infer: true }),
+      secure: this.secure(),
+      sameSite: this.sameSite(),
+      domain: this.cookieDomain(),
       path: '/',
       maxAge,
     };
+  }
+
+  private secure(): boolean {
+    return this.config.get('COOKIE_SECURE', { infer: true });
+  }
+
+  /**
+   * `lax` while the web app and the API share a site (local dev, or both behind
+   * one domain). When they don't — a Vercel web app calling a Railway API, say —
+   * the browser treats every API call as cross-site and withholds a `lax` cookie,
+   * so `/auth/refresh` would never see it and sessions would die at the access
+   * token's TTL. `none` is the only value that survives that, and browsers only
+   * accept it on a `Secure` cookie, so it follows COOKIE_SECURE rather than
+   * being configured on its own.
+   */
+  private sameSite(): 'none' | 'lax' {
+    return this.secure() ? 'none' : 'lax';
+  }
+
+  /**
+   * Omitted when COOKIE_DOMAIN is blank, which scopes the cookie to the API host
+   * alone. Shared platform domains (`.vercel.app`, `.railway.app`) are on the
+   * Public Suffix List and cannot be set as a cookie domain anyway.
+   */
+  private cookieDomain(): string | undefined {
+    return this.config.get('COOKIE_DOMAIN', { infer: true }) || undefined;
   }
 }
